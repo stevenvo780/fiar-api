@@ -20,12 +20,17 @@ export class ClientService {
 
   async create(data: CreateClientDto, user: User): Promise<Client> {
     const exists = await this.clientRepository.findOne({
-      where: { email: data.email, user },
+      where: { document: data.document, user },
     });
     if (exists) {
-      throw new ConflictException('El correo ya existe para este usuario');
+      throw new ConflictException('Ya existe un cliente con ese documento para este usuario');
     }
-    const client = this.clientRepository.create({ ...data, user });
+
+    const client = this.clientRepository.create({
+      ...data,
+      user,
+    });
+
     return this.clientRepository.save(client);
   }
 
@@ -41,9 +46,9 @@ export class ClientService {
       where: { id },
       relations: ['user'],
     });
-    if (!client) throw new NotFoundException('Client not found');
+    if (!client) throw new NotFoundException('Cliente no encontrado');
     if (client.user.id !== userId) {
-      throw new ForbiddenException('No permission to access this client');
+      throw new ForbiddenException('No tiene permiso para acceder a este cliente');
     }
     return client;
   }
@@ -53,18 +58,22 @@ export class ClientService {
       where: { id },
       relations: ['user'],
     });
-    if (!client) throw new NotFoundException('Client not found');
-    if (client.user.id !== user.id)
-      throw new ForbiddenException('No permission to modify this client');
-    if (data.email && data.email !== client.email) {
+    if (!client) throw new NotFoundException('Cliente no encontrado');
+    if (client.user.id !== user.id) {
+      throw new ForbiddenException('No tiene permiso para modificar este cliente');
+    }
+
+    if (data.document && data.document !== client.document) {
       const exists = await this.clientRepository.findOne({
-        where: { email: data.email, user },
+        where: { document: data.document, user },
       });
       if (exists && exists.id !== client.id) {
-        throw new ConflictException('El correo ya existe para este usuario');
+        throw new ConflictException('Ya existe un cliente con ese documento para este usuario');
       }
     }
+
     Object.assign(client, data);
+
     return this.clientRepository.save(client);
   }
 
@@ -73,9 +82,10 @@ export class ClientService {
       where: { id },
       relations: ['user'],
     });
-    if (!client) throw new NotFoundException('Client not found');
-    if (client.user.id !== user.id)
-      throw new ForbiddenException('No permission to delete this client');
+    if (!client) throw new NotFoundException('Cliente no encontrado');
+    if (client.user.id !== user.id) {
+      throw new ForbiddenException('No tiene permiso para eliminar este cliente');
+    }
     await this.clientRepository.delete(id);
   }
 }
