@@ -5,11 +5,12 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindManyOptions } from 'typeorm';
 import { Client } from './entities/client.entity';
 import { User } from '../user/entities/user.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { PaginatedResponseDto } from '../dto/paginated-response.dto';
 
 @Injectable()
 export class ClientService {
@@ -20,7 +21,7 @@ export class ClientService {
 
   async create(data: CreateClientDto, user: User): Promise<Client> {
     const exists = await this.clientRepository.findOne({
-      where: { document: data.document, user },
+      where: { document: data.document, user: { id: user.id } },
     });
     if (exists) {
       throw new ConflictException(
@@ -36,34 +37,43 @@ export class ClientService {
     return this.clientRepository.save(client);
   }
 
-  // async findAll(userId: string): Promise<Client[]> {
-  //   return this.clientRepository.find({
-  //     where: { user: { id: userId } },
-  //     order: { createdAt: 'DESC' },
-  //   });
-  // }
-
-  //código nuevo; acaá añadí también dos filtros: blocked y city
   async findAll(
     userId: string,
-    filters: { blocked?: boolean; city?: string },
-  ): Promise<Client[]> {
-    const where: any = {
+    options: { page: number; limit: number; blocked?: boolean; city?: string },
+  ): Promise<PaginatedResponseDto<Client>> {
+    const { page, limit, blocked, city } = options;
+    const skip = (page - 1) * limit;
+
+    const where: FindManyOptions<Client>['where'] = {
       user: { id: userId },
     };
 
-    if (filters.blocked !== undefined) {
-      where.blocked = filters.blocked;
+    if (blocked !== undefined) {
+      where.blocked = blocked;
     }
 
-    if (filters.city) {
-      where.city = filters.city;
+    if (city) {
+      where.city = city;
     }
 
-    return this.clientRepository.find({
+    const [data, total] = await this.clientRepository.findAndCount({
       where,
+      take: limit,
+      skip: skip,
       order: { createdAt: 'DESC' },
     });
+
+    const total_pages = Math.ceil(total / limit);
+    const last_page = total_pages;
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      total_pages,
+      last_page,
+    };
   }
 
   async findOne(id: number, userId: string): Promise<Client> {

@@ -9,6 +9,8 @@ import {
   UseGuards,
   Request,
   Query,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -24,8 +26,30 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
+  ApiQuery,
+  ApiProperty,
 } from '@nestjs/swagger';
 import { Transaction } from './entities/transaction.entity';
+
+class PaginatedTransactionsResponse {
+  @ApiProperty({ type: [Transaction] })
+  data: Transaction[];
+
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
+
+  @ApiProperty()
+  total_pages: number;
+
+  @ApiProperty()
+  last_page: number;
+}
 
 @ApiTags('transactions')
 @Controller('transactions')
@@ -33,9 +57,35 @@ export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
   @ApiOperation({
-    summary: 'Obtener todas las transacciones del usuario autenticado',
+    summary:
+      'Obtener todas las transacciones del usuario autenticado con paginación',
   })
-  @ApiOkResponse({ type: [Transaction] })
+  @ApiOkResponse({ type: PaginatedTransactionsResponse })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Número de página (por defecto 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Elementos por página (por defecto 10)',
+  })
+  @ApiQuery({ name: 'minAmount', required: false, type: Number })
+  @ApiQuery({ name: 'maxAmount', required: false, type: Number })
+  @ApiQuery({ name: 'clientSearch', required: false, type: String })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'order', required: false, enum: ['asc', 'desc'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    type: String,
+    description:
+      'Filtrar por estado de la transacción (pending, approved, rejected)',
+  })
   @UseGuards(FirebaseAuthGuard)
   @Get()
   findAll(
@@ -46,7 +96,11 @@ export class TransactionController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('order') order: 'asc' | 'desc' = 'desc',
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit = 10,
+    @Query('status') status?: string,
   ) {
+    limit = limit > 100 ? 100 : limit;
     return this.transactionService.findAll(req.user.id, {
       minAmount,
       maxAmount,
@@ -54,6 +108,9 @@ export class TransactionController {
       startDate,
       endDate,
       order,
+      page,
+      limit,
+      status,
     });
   }
 

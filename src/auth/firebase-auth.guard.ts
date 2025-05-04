@@ -37,14 +37,13 @@ export class FirebaseAuthGuard implements CanActivate {
         newUser.id = decodedToken.uid;
         newUser.email = decodedToken.email;
         newUser.name = decodedToken.name;
-        newUser.role = UserRole.SUPER_ADMIN; // Default role for new users
+        newUser.role = UserRole.SUPER_ADMIN;
         const responseUser = await this.userRepository.save(newUser);
         request['user'] = responseUser;
       }
 
       request['user'] = user;
       request['token'] = decodedToken;
-      console.log('Decoded token:', decodedToken);
       return true;
     } catch (error) {
       if (error.code) {

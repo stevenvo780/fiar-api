@@ -10,6 +10,7 @@ import {
   Request,
   ParseIntPipe,
   Query,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ClientService } from './client.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -25,8 +26,16 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
+  ApiQuery,
+  ApiProperty,
 } from '@nestjs/swagger';
 import { Client } from './entities/client.entity';
+import { PaginatedResponseDto } from '../dto/paginated-response.dto';
+
+class PaginatedClientsResponse extends PaginatedResponseDto<Client> {
+  @ApiProperty({ type: [Client] })
+  data: Client[];
+}
 
 @ApiTags('clients')
 @Controller('clients')
@@ -34,18 +43,52 @@ export class ClientController {
   constructor(private readonly clientService: ClientService) {}
 
   @ApiOperation({
-    summary: 'Obtener todos los clientes del usuario autenticado',
+    summary:
+      'Obtener todos los clientes del usuario autenticado con paginación',
   })
-  @ApiOkResponse({ type: [Client] })
+  @ApiOkResponse({ type: PaginatedClientsResponse })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Número de página (por defecto 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Número de elementos por página (por defecto 10)',
+  })
+  @ApiQuery({
+    name: 'blocked',
+    required: false,
+    type: Boolean,
+    description: 'Filtrar por estado bloqueado',
+  })
+  @ApiQuery({
+    name: 'city',
+    required: false,
+    type: String,
+    description: 'Filtrar por ciudad',
+  })
   @UseGuards(FirebaseAuthGuard)
   @Get()
   findAll(
     @Request() req: RequestWithUser,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('blocked') blocked?: boolean,
     @Query('city') city?: string,
-  ) {
-    return this.clientService.findAll(req.user.id, { blocked, city });
+  ): Promise<PaginatedResponseDto<Client>> {
+    limit = limit > 100 ? 100 : limit;
+    return this.clientService.findAll(req.user.id, {
+      page,
+      limit,
+      blocked,
+      city,
+    });
   }
+
   @ApiOperation({
     summary: 'Obtener un cliente por ID',
   })
@@ -55,7 +98,7 @@ export class ClientController {
   findOne(
     @Param('id', ParseIntPipe) id: number,
     @Request() req: RequestWithUser,
-  ) {
+  ): Promise<Client> {
     return this.clientService.findOne(id, req.user.id);
   }
 
@@ -70,8 +113,7 @@ export class ClientController {
   create(
     @Request() req: RequestWithUser,
     @Body() createClientDto: CreateClientDto,
-  ) {
-    console.log('createClientDto', createClientDto);
+  ): Promise<Client> {
     return this.clientService.create(createClientDto, req.user);
   }
 
@@ -87,7 +129,7 @@ export class ClientController {
     @Param('id', ParseIntPipe) id: number,
     @Request() req: RequestWithUser,
     @Body() updateClientDto: UpdateClientDto,
-  ) {
+  ): Promise<Client> {
     return this.clientService.update(id, updateClientDto, req.user);
   }
 
