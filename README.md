@@ -151,46 +151,7 @@ https://total-pedidos-api.example.com/api
 
 
 
-## Pasos
 
-**Instala la dependencia:**
-npm install
 
-**Configura las variables de entorno en .env:**
 
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-DB_NAME=cafeteria-del-caos
-DB_SYNCHRONIZE=true
-
-FIREBASE_PROJECT_ID=your_project_id
-FIREBASE_CLIENT_EMAIL=your_client_email
-FIREBASE_PRIVATE_KEY=your_private_key
-
-FRONT_URL=http://localhost:3000
-
-**Ejecución**
-
-npm run start
-
-npm run start:dev
-
-npm run start:prod
-
-Docker y Despliegue
-
-1. Construye la imagen:
-
-docker build -t total-pedidos-api .
-
-2. ejecuta el contenedor:
-
-docker run --env-file .env -p 3000:3000 total-pedidos-api
-
-3. Accede a http://localhost:3000.
-
-## Licencia
-Este proyecto está licenciado bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
 
