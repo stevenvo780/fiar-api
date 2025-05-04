@@ -11,10 +11,11 @@ import { AppService } from './app.service';
 import { LoggerMiddleware } from './logger.middleware';
 import AppProvider from './app.provider';
 import { typeOrmConfig } from './utils/typeorm.config';
-
+import { TransactionModule } from './transaction/transaction.module';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { ClientModule } from './client/client.module';
+import{UserModule} from './user/user.module';
 import { WompiModule } from './wompi/wompi.module';
 
 @Module({
@@ -24,6 +25,8 @@ import { WompiModule } from './wompi/wompi.module';
     AuthModule,
     ProfileModule,
     ClientModule,
+    TransactionModule,
+    UserModule,
     WompiModule,
   ],
   controllers: [AppController],

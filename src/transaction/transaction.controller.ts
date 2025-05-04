@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -36,10 +37,27 @@ export class TransactionController {
   })
   @ApiOkResponse({ type: [Transaction] })
   @UseGuards(FirebaseAuthGuard)
+
   @Get()
-  findAll(@Request() req: RequestWithUser) {
-    return this.transactionService.findAll(req.user.id);
+  findAll(
+    @Request() req: RequestWithUser,
+    @Query('minAmount') minAmount?: number,
+    @Query('maxAmount') maxAmount?: number,
+    @Query('clientSearch') clientSearch?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('order') order: 'asc' | 'desc' = 'desc',  // Filtro de orden por monto
+  ) {
+    return this.transactionService.findAll(req.user.id, {
+      minAmount,
+      maxAmount,
+      clientSearch,
+      startDate,
+      endDate,
+      order,
+    });
   }
+  
 
   @ApiOperation({
     summary: 'Obtener una transacción por ID',

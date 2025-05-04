@@ -34,12 +34,37 @@ export class ClientService {
     return this.clientRepository.save(client);
   }
 
-  async findAll(userId: string): Promise<Client[]> {
+
+
+
+  // async findAll(userId: string): Promise<Client[]> {
+  //   return this.clientRepository.find({
+  //     where: { user: { id: userId } },
+  //     order: { createdAt: 'DESC' },
+  //   });
+  // }
+
+
+  //código nuevo; acaá añadí también dos filtros: blocked y city
+  async findAll(userId: string, filters: { blocked?: boolean; city?: string }): Promise<Client[]> {
+    const where: any = {
+      user: { id: userId },
+    };
+  
+    if (filters.blocked !== undefined) {
+      where.blocked = filters.blocked;
+    }
+  
+    if (filters.city) {
+      where.city = filters.city;
+    }
+  
     return this.clientRepository.find({
-      where: { user: { id: userId } },
+      where,
       order: { createdAt: 'DESC' },
     });
   }
+  
 
   async findOne(id: number, userId: string): Promise<Client> {
     const client = await this.clientRepository.findOne({

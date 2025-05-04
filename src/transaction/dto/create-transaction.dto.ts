@@ -22,7 +22,8 @@ export class CreateTransactionDto {
   detail?: Record<string, any>;
 
   @IsOptional()
-  @IsUUID()
-  @ApiProperty({ description: 'Hash de la transacción en blockchain', example: 'b1a45ac2-72a6-4f8d-bc13-6bce13df5f58', required: false })
+  @IsString()
+  @ApiProperty({ description: 'Hash de la transacción en blockchain', example: '0xabc123hash', required: false })
   txn_hash?: string;
+  
 }

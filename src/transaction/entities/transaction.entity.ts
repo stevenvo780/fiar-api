@@ -38,7 +38,7 @@ import {
     @ApiProperty({ description: 'Detalles adicionales de la transacción', example: '{}' })
     detail?: Record<string, any>;
   
-    @Column({ type: 'uuid', nullable: true })
+    @Column({ type: 'text', nullable: true })
     @ApiProperty({ description: 'Hash de transacción en blockchain', example: 'uuid' })
     txn_hash?: string;
   }
