@@ -25,6 +25,7 @@ export class TransactionService {
   ) {}
 
   async create(data: CreateTransactionDto, user: User): Promise<Transaction> {
+    console.log(data);
     const lastTx = await this.transactionRepository.findOne({
       where: { owner: { id: user.id } },
       order: { createdAt: 'DESC' },
@@ -40,12 +41,40 @@ export class TransactionService {
       }
     }
 
-    const client = await this.clientRepository.findOne({
-      where: { id: parseInt(data.clientId, 10) },
-    });
-    if (!client) {
-      throw new NotFoundException('Cliente no encontrado');
+    let client: Client;
+    if (data.clientId) {
+      client = await this.clientRepository.findOne({
+        where: { id: parseInt(data.clientId, 10), user: { id: user.id } },
+      });
+      if (!client) throw new NotFoundException('Cliente no encontrado por ID');
+    } else if (data.clientData) {
+      const { phone, document } = data.clientData;
+      let existing = null;
+      if (phone) {
+        existing = await this.clientRepository.findOne({
+          where: { phone, user: { id: user.id } },
+        });
+      }
+      if (!existing && document) {
+        existing = await this.clientRepository.findOne({
+          where: { document, user: { id: user.id } },
+        });
+      }
+      if (existing) {
+        client = existing;
+      } else {
+        client = this.clientRepository.create({
+          ...data.clientData,
+          user,
+        });
+        client = await this.clientRepository.save(client);
+      }
+    } else {
+      throw new BadRequestException(
+        'Se requiere clientId o clientData para crear transacción',
+      );
     }
+
     let transaction = this.transactionRepository.create({
       ...data,
       owner: user,

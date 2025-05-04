@@ -28,8 +28,10 @@ import {
   ApiOkResponse,
   ApiQuery,
   ApiProperty,
+  ApiHeader,
 } from '@nestjs/swagger';
 import { Transaction } from './entities/transaction.entity';
+import { ApiKeyAuthGuard } from '../auth/api-key-auth.guard';
 
 class PaginatedTransactionsResponse {
   @ApiProperty({ type: [Transaction] })
@@ -127,9 +129,12 @@ export class TransactionController {
   @ApiOperation({
     summary: 'Crear una nueva transacción',
   })
-  @ApiBearerAuth()
-  @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_OWNER)
+  @ApiHeader({
+    name: 'X-API-KEY',
+    description: 'Clave del servicio consumidor (server-to-server)',
+    required: true,
+  })
+  @UseGuards(ApiKeyAuthGuard)
   @ApiCreatedResponse({ type: Transaction })
   @Post()
   create(

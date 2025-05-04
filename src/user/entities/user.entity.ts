@@ -67,4 +67,11 @@ export class User extends SharedProp {
 
   @OneToMany(() => PaymentSource, (paymentSource) => paymentSource.user)
   paymentSources: PaymentSource[];
+
+  @Column({ type: 'text', nullable: true, unique: true })
+  @ApiProperty({
+    description: 'API key para autenticación server-to-server',
+    example: 'a1b2c3d4-e5f6-...',
+  })
+  apiKey?: string;
 }
