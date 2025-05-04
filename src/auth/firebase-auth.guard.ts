@@ -10,7 +10,7 @@ import { Request } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import admin from '../utils/firebase-admin.config';
-import { User } from '../user/entities/user.entity';
+import { User,UserRole } from '../user/entities/user.entity';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -33,12 +33,18 @@ export class FirebaseAuthGuard implements CanActivate {
       const userId = decodedToken.uid;
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (!user) {
-        throw new UnauthorizedException('User not found');
+        const newUser = new User();
+        newUser.id = decodedToken.uid;
+        newUser.email = decodedToken.email;
+        newUser.name = decodedToken.name;
+        newUser.role = UserRole.SUPER_ADMIN; // Default role for new users
+        const responseUser= await this.userRepository.save(newUser);
+        request['user'] = responseUser; 
       }
 
       request['user'] = user;
       request['token'] = decodedToken;
-
+      console.log('Decoded token:', decodedToken);
       return true;
     } catch (error) {
       if (error.code) {

@@ -12,6 +12,9 @@ async function bootstrap() {
     cors: true,
   });
 
+  // Habilitar prefijo global para rutas
+  app.setGlobalPrefix('api/v1');
+
   app.use(compression());
 
   const config = new DocumentBuilder()

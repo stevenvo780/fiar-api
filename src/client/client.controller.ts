@@ -60,13 +60,14 @@ export class ClientController {
   })
   @ApiBearerAuth()
   @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_OWNER)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_OWNER, UserRole.CUSTOMER)
   @ApiCreatedResponse({ type: Client })
   @Post()
   create(
     @Request() req: RequestWithUser,
     @Body() createClientDto: CreateClientDto,
   ) {
+    console.log('createClientDto', createClientDto);
     return this.clientService.create(createClientDto, req.user);
   }
 
