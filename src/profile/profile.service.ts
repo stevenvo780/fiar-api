@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Profile } from './entities/profile.entity';
 import { CreateProfileDto } from './dto/create-profile.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 import { User } from '../user/entities/user.entity';
 
 @Injectable()
@@ -15,20 +14,9 @@ export class ProfileService {
     private userRepository: Repository<User>,
   ) {}
 
-
-  
-
-  async findOne(id: number): Promise<Profile> {
-    const profile = await this.profileRepository.findOne({
-      where: { id },
-      relations: ['user'],
-    });
-    if (!profile) {
-      throw new NotFoundException('Profile not found');
-    }
-    return profile;
+  async findOne(id: string): Promise<Profile> {
+    return this.profileRepository.findOne({ where: { id: +id } }); // conversión a número
   }
-
 
   async upsert(userId: string, dto: CreateProfileDto): Promise<Profile> {
     const user = await this.userRepository.findOneBy({ id: userId.toString() });

@@ -39,9 +39,15 @@ export class ClientService {
 
   async findAll(
     userId: string,
-    options: { page: number; limit: number; blocked?: boolean; city?: string },
+    options: {
+      page: number;
+      limit: number;
+      blocked?: boolean;
+      city?: string;
+      document?: string;
+    },
   ): Promise<PaginatedResponseDto<Client>> {
-    const { page, limit, blocked, city } = options;
+    const { page, limit, blocked, city, document } = options;
     const skip = (page - 1) * limit;
 
     const where: FindManyOptions<Client>['where'] = {
@@ -54,6 +60,10 @@ export class ClientService {
 
     if (city) {
       where.city = city;
+    }
+
+    if (document) {
+      where.document = document;
     }
 
     const [data, total] = await this.clientRepository.findAndCount({

@@ -4,7 +4,6 @@ import {
   Post,
   Body,
   Param,
-  Patch,
   UseGuards,
   Put,
   Request,
@@ -47,10 +46,8 @@ export class ProfileController {
   @ApiOkResponse({ type: Profile })
   @Get(':id')
   findOne(@Param('id') id: string): Promise<Profile> {
-    return this.profileService.findOne(+id);
+    return this.profileService.findOne(id);
   }
-
-
 
   @ApiOperation({ summary: 'Crear o actualizar un perfil por ID de usuario' })
   @UseGuards(FirebaseAuthGuard, RolesGuard)
