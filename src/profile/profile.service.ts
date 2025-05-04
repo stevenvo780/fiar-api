@@ -15,7 +15,7 @@ export class ProfileService {
   ) {}
 
   async findOne(id: string): Promise<Profile> {
-    return this.profileRepository.findOne({ where: { id: +id } }); // conversión a número
+    return this.profileRepository.findOne({ where: { id: +id } });
   }
 
   async upsert(userId: string, dto: CreateProfileDto): Promise<Profile> {
@@ -51,7 +51,7 @@ export class ProfileService {
     if (!profile) {
       const newProfile = this.profileRepository.create({
         user: { id: userId },
-        commerce_name: '', // Valor por defecto para evitar error de not null
+        commerce_name: '',
       });
       return this.profileRepository.save(newProfile);
     }
