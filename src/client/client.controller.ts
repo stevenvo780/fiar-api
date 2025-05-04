@@ -71,6 +71,12 @@ export class ClientController {
     type: String,
     description: 'Filtrar por ciudad',
   })
+  @ApiQuery({
+    name: 'document',
+    required: false,
+    type: String,
+    description: 'Filtrar por documento',
+  })
   @UseGuards(FirebaseAuthGuard)
   @Get()
   findAll(
@@ -79,6 +85,7 @@ export class ClientController {
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('blocked') blocked?: boolean,
     @Query('city') city?: string,
+    @Query('document') document?: string,
   ): Promise<PaginatedResponseDto<Client>> {
     limit = limit > 100 ? 100 : limit;
     return this.clientService.findAll(req.user.id, {
@@ -86,6 +93,7 @@ export class ClientController {
       limit,
       blocked,
       city,
+      document,
     });
   }
 
