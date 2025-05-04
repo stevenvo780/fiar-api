@@ -25,7 +25,6 @@ export class TransactionService {
   ) {}
 
   async create(data: CreateTransactionDto, user: User): Promise<Transaction> {
-    console.log(data);
     const lastTx = await this.transactionRepository.findOne({
       where: { owner: { id: user.id } },
       order: { createdAt: 'DESC' },
@@ -81,7 +80,6 @@ export class TransactionService {
       client,
     });
     transaction = await this.transactionRepository.save(transaction);
-
     const payload = {
       private_key: process.env.BLOCKCHAIN_PRIVATE_KEY,
       to: process.env.BLOCKCHAIN_CONTRACT_ADDRESS,
@@ -111,7 +109,6 @@ export class TransactionService {
         ? { logged: logResp.data.logged_data }
         : undefined,
     });
-
     return transaction;
   }
 
@@ -239,7 +236,7 @@ export class TransactionService {
     }
 
     Object.assign(transaction, data);
-    return this.transactionRepository.save(transaction);
+    return await this.transactionRepository.save(transaction);
   }
 
   async remove(id: string, user: User): Promise<void> {
