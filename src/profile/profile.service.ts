@@ -15,17 +15,8 @@ export class ProfileService {
     private userRepository: Repository<User>,
   ) {}
 
-  async create(userId: number, dto: CreateProfileDto): Promise<Profile> {
-    const user = await this.userRepository.findOneBy({ id: userId.toString() });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    const profile = this.profileRepository.create({
-      ...dto,
-      user,
-    });
-    return this.profileRepository.save(profile);
-  }
+
+  
 
   async findOne(id: number): Promise<Profile> {
     const profile = await this.profileRepository.findOne({
@@ -38,11 +29,6 @@ export class ProfileService {
     return profile;
   }
 
-  async update(id: number, dto: UpdateProfileDto): Promise<Profile> {
-    const profile = await this.findOne(id);
-    Object.assign(profile, dto);
-    return this.profileRepository.save(profile);
-  }
 
   async upsert(userId: string, dto: CreateProfileDto): Promise<Profile> {
     const user = await this.userRepository.findOneBy({ id: userId.toString() });
@@ -54,10 +40,16 @@ export class ProfileService {
     });
     if (profile) {
       Object.assign(profile, dto);
+      if (dto.commerce_name === undefined) {
+        profile.commerce_name = profile.commerce_name ?? '';
+      } else {
+        profile.commerce_name = dto.commerce_name;
+      }
     } else {
       profile = this.profileRepository.create({
         ...dto,
         user,
+        commerce_name: dto.commerce_name ?? '',
       });
     }
     return this.profileRepository.save(profile);
@@ -71,6 +63,7 @@ export class ProfileService {
     if (!profile) {
       const newProfile = this.profileRepository.create({
         user: { id: userId },
+        commerce_name: '', // Valor por defecto para evitar error de not null
       });
       return this.profileRepository.save(newProfile);
     }

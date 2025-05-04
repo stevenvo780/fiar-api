@@ -30,10 +30,11 @@ export class Profile extends SharedProp {
   })
   phone?: string;
 
-  @Column({ name: 'commerce_name', type: 'text' })
+  @Column({ name: 'commerce_name', type: 'text', nullable: true })
   @ApiProperty({
     description: 'Name of the associated business or commerce',
     example: 'Distribuciones El Trece',
+    nullable: true,
   })
-  commerce_name: string;
+  commerce_name?: string;
 }

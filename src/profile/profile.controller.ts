@@ -12,7 +12,6 @@ import {
 import { RequestWithUser } from '../auth/types';
 import { ProfileService } from './profile.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 import { Profile } from './entities/profile.entity';
 import {
   ApiTags,
@@ -31,17 +30,17 @@ import { UserRole } from '../user/entities/user.entity';
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
-  @ApiOperation({ summary: 'Crear un nuevo perfil de usuario' })
+  @ApiOperation({ summary: 'Crear o actualizar un perfil de usuario' })
   @UseGuards(FirebaseAuthGuard, RolesGuard)
   @ApiBearerAuth()
   @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_OWNER)
   @ApiCreatedResponse({ type: Profile })
-  @Post(':userId')
-  create(
-    @Param('userId') userId: string,
+  @Post()
+  upsert(
+    @Request() req: RequestWithUser,
     @Body() dto: CreateProfileDto,
   ): Promise<Profile> {
-    return this.profileService.create(+userId, dto);
+    return this.profileService.upsert(req.user.id, dto);
   }
 
   @ApiOperation({ summary: 'Obtener un perfil por ID' })
@@ -51,18 +50,7 @@ export class ProfileController {
     return this.profileService.findOne(+id);
   }
 
-  @ApiOperation({ summary: 'Actualizar un perfil por ID' })
-  @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @ApiBearerAuth()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_OWNER)
-  @ApiOkResponse({ type: Profile })
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateProfileDto,
-  ): Promise<Profile> {
-    return this.profileService.update(+id, dto);
-  }
+
 
   @ApiOperation({ summary: 'Crear o actualizar un perfil por ID de usuario' })
   @UseGuards(FirebaseAuthGuard, RolesGuard)
@@ -70,7 +58,7 @@ export class ProfileController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_OWNER, UserRole.CUSTOMER)
   @ApiCreatedResponse({ type: Profile })
   @Put()
-  upsert(
+  upsertPut(
     @Body() dto: CreateProfileDto,
     @Request() req: RequestWithUser,
   ): Promise<Profile> {
@@ -78,12 +66,11 @@ export class ProfileController {
     return this.profileService.upsert(userId, dto);
   }
 
-  @Get('get/my')
-  @UseGuards(FirebaseAuthGuard, RolesGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Obtener el perfil del usuario logueado' })
-  @ApiOkResponse({ description: 'Perfil del usuario' })
-  async getMyProfile(@Request() req: RequestWithUser) {
+  @ApiOperation({ summary: 'Obtener el perfil del usuario autenticado' })
+  @ApiOkResponse({ type: Profile })
+  @UseGuards(FirebaseAuthGuard)
+  @Get()
+  getMyProfile(@Request() req: RequestWithUser) {
     return this.profileService.findProfileByUser(req.user.id);
   }
 }
