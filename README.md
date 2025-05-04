@@ -130,18 +130,7 @@ secrets:
     DATABASE_URL: 'projects/$PROJECT_ID/secrets/DATABASE_URL/versions/latest'
 ```
 
-## Pruebas
-La API incluye pruebas automatizadas. Puedes ejecutarlas usando los siguientes comandos:
-```bash
-# Pruebas unitarias
-npm run test
 
-# Pruebas de extremo a extremo (e2e)
-npm run test:e2e
-
-# Cobertura de pruebas
-npm run test:cov
-```
 
 ## Soporte
 Si encuentras útil la Total Pedidos API, considera apoyar el proyecto contribuyendo código, reportando problemas o compartiendo el proyecto.
