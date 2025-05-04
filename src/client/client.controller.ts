@@ -1,16 +1,16 @@
-import {Controller,
-Get,
-Post,
-Body,
-Put,
-Param,
-Delete,
-UseGuards,
-Request,
-ParseIntPipe,
-Query,
-} 
-from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Put,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { ClientService } from './client.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -38,12 +38,6 @@ export class ClientController {
   })
   @ApiOkResponse({ type: [Client] })
   @UseGuards(FirebaseAuthGuard)
-  // @Get()
-  // findAll(@Request() req: RequestWithUser) {
-  //   return this.clientService.findAll(req.user.id);
-  // }
-
-  //código nuevo; añadí dos filtros: blocked y city
   @Get()
   findAll(
     @Request() req: RequestWithUser,

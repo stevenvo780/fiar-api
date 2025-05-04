@@ -37,7 +37,6 @@ export class TransactionController {
   })
   @ApiOkResponse({ type: [Transaction] })
   @UseGuards(FirebaseAuthGuard)
-
   @Get()
   findAll(
     @Request() req: RequestWithUser,
@@ -46,7 +45,7 @@ export class TransactionController {
     @Query('clientSearch') clientSearch?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Query('order') order: 'asc' | 'desc' = 'desc',  // Filtro de orden por monto
+    @Query('order') order: 'asc' | 'desc' = 'desc',
   ) {
     return this.transactionService.findAll(req.user.id, {
       minAmount,
@@ -57,7 +56,6 @@ export class TransactionController {
       order,
     });
   }
-  
 
   @ApiOperation({
     summary: 'Obtener una transacción por ID',

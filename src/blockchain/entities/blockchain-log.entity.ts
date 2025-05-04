@@ -5,11 +5,17 @@ import { SharedProp } from '@/common/entities/sharedProp.helper';
 @Entity()
 export class BlockchainLog extends SharedProp {
   @PrimaryGeneratedColumn('uuid')
-  @ApiProperty({ description: 'Identificador único del registro', example: 'uuid' })
+  @ApiProperty({
+    description: 'Identificador único del registro',
+    example: 'uuid',
+  })
   id: string;
 
   @Column({ type: 'varchar', length: 50 })
-  @ApiProperty({ description: 'Entidad asociada al registro', example: 'transaction' })
+  @ApiProperty({
+    description: 'Entidad asociada al registro',
+    example: 'transaction',
+  })
   entity: string;
 
   @Column({ type: 'uuid' })
@@ -17,19 +23,31 @@ export class BlockchainLog extends SharedProp {
   entityId: string;
 
   @Column({ type: 'text' })
-  @ApiProperty({ description: 'Hash de la transacción en blockchain', example: '0x123...' })
+  @ApiProperty({
+    description: 'Hash de la transacción en blockchain',
+    example: '0x123...',
+  })
   txnHash: string;
 
   @Column({ type: 'text' })
-  @ApiProperty({ description: 'Dirección del contrato asociado', example: '0xabc...' })
+  @ApiProperty({
+    description: 'Dirección del contrato asociado',
+    example: '0xabc...',
+  })
   contractAddress: string;
 
   @Column({ type: 'varchar', length: 30 })
-  @ApiProperty({ description: 'Red de blockchain utilizada', example: 'Avalanche' })
+  @ApiProperty({
+    description: 'Red de blockchain utilizada',
+    example: 'Avalanche',
+  })
   network: string;
 
   @Column({ type: 'bigint' })
-  @ApiProperty({ description: 'Número de bloque en blockchain', example: 123456 })
+  @ApiProperty({
+    description: 'Número de bloque en blockchain',
+    example: 123456,
+  })
   blockNumber: number;
 
   @Column({ type: 'text' })
@@ -37,6 +55,9 @@ export class BlockchainLog extends SharedProp {
   signature: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  @ApiProperty({ description: 'Prueba adicional en formato JSON', example: '{}' })
+  @ApiProperty({
+    description: 'Prueba adicional en formato JSON',
+    example: '{}',
+  })
   proof?: Record<string, any>;
 }

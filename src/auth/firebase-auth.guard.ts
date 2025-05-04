@@ -10,7 +10,7 @@ import { Request } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import admin from '../utils/firebase-admin.config';
-import { User,UserRole } from '../user/entities/user.entity';
+import { User, UserRole } from '../user/entities/user.entity';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -38,8 +38,8 @@ export class FirebaseAuthGuard implements CanActivate {
         newUser.email = decodedToken.email;
         newUser.name = decodedToken.name;
         newUser.role = UserRole.SUPER_ADMIN; // Default role for new users
-        const responseUser= await this.userRepository.save(newUser);
-        request['user'] = responseUser; 
+        const responseUser = await this.userRepository.save(newUser);
+        request['user'] = responseUser;
       }
 
       request['user'] = user;
