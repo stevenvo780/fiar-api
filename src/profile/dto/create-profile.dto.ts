@@ -55,4 +55,13 @@ export class CreateProfileDto {
     example: '+1234567890',
   })
   additionalPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'Nombre del comercio asociado al perfil',
+    example: 'Distribuciones El Trece',
+    required: false,
+  })
+  commerce_name?: string;
 }
