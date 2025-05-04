@@ -1,10 +1,19 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsNotEmpty,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateClientDto {
   @IsString()
   @IsNotEmpty()
-  @ApiProperty({ description: 'Documento de identificación del cliente', example: '1234567890' })
+  @ApiProperty({
+    description: 'Documento de identificación del cliente',
+    example: '1234567890',
+  })
   document: string;
 
   @IsOptional()
@@ -19,17 +28,26 @@ export class CreateClientDto {
 
   @IsOptional()
   @IsNumber()
-  @ApiProperty({ description: 'Límite de crédito disponible', example: 100000.00 })
+  @ApiProperty({
+    description: 'Límite de crédito disponible',
+    example: 100000.0,
+  })
   credit_limit?: number;
 
   @IsOptional()
   @IsBoolean()
-  @ApiProperty({ description: 'Indica si el cliente es de confianza', example: true })
+  @ApiProperty({
+    description: 'Indica si el cliente es de confianza',
+    example: true,
+  })
   trusted?: boolean;
 
   @IsOptional()
   @IsBoolean()
-  @ApiProperty({ description: 'Indica si el cliente está bloqueado', example: false })
+  @ApiProperty({
+    description: 'Indica si el cliente está bloqueado',
+    example: false,
+  })
   blocked?: boolean;
 
   @IsOptional()
@@ -39,12 +57,18 @@ export class CreateClientDto {
 
   @IsOptional()
   @IsString()
-  @ApiProperty({ description: 'Departamento o estado del cliente', example: 'Antioquia' })
+  @ApiProperty({
+    description: 'Departamento o estado del cliente',
+    example: 'Antioquia',
+  })
   state?: string;
 
   @IsOptional()
   @IsString()
-  @ApiProperty({ description: 'Dirección del cliente', example: 'Cra 15A #10B-240' })
+  @ApiProperty({
+    description: 'Dirección del cliente',
+    example: 'Cra 15A #10B-240',
+  })
   direction?: string;
 
   @IsOptional()

@@ -17,11 +17,17 @@ export class Client extends SharedProp {
 
   @ManyToOne(() => User, (user) => user.clients, { nullable: false })
   @JoinColumn({ name: 'owner_id' })
-  @ApiProperty({ description: 'Usuario que creó o administra este cliente', type: () => User })
+  @ApiProperty({
+    description: 'Usuario que creó o administra este cliente',
+    type: () => User,
+  })
   user: User;
 
   @Column({ nullable: false })
-  @ApiProperty({ description: 'Documento de identificación del cliente', example: '1234567890' })
+  @ApiProperty({
+    description: 'Documento de identificación del cliente',
+    example: '1234567890',
+  })
   document: string;
 
   @Column({ nullable: true })
@@ -33,15 +39,24 @@ export class Client extends SharedProp {
   name?: string;
 
   @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
-  @ApiProperty({ description: 'Límite de crédito disponible', example: 100000.00 })
+  @ApiProperty({
+    description: 'Límite de crédito disponible',
+    example: 100000.0,
+  })
   credit_limit: number;
 
   @Column({ type: 'boolean', default: false })
-  @ApiProperty({ description: 'Indica si el cliente es de confianza', example: true })
+  @ApiProperty({
+    description: 'Indica si el cliente es de confianza',
+    example: true,
+  })
   trusted: boolean;
 
   @Column({ type: 'boolean', nullable: true })
-  @ApiProperty({ description: 'Indica si el cliente está bloqueado', required: false })
+  @ApiProperty({
+    description: 'Indica si el cliente está bloqueado',
+    required: false,
+  })
   blocked?: boolean;
 
   @Column({ nullable: true })
@@ -49,11 +64,17 @@ export class Client extends SharedProp {
   city?: string;
 
   @Column({ nullable: true })
-  @ApiProperty({ description: 'Departamento o estado del cliente', example: 'Antioquia' })
+  @ApiProperty({
+    description: 'Departamento o estado del cliente',
+    example: 'Antioquia',
+  })
   state?: string;
 
   @Column({ nullable: true })
-  @ApiProperty({ description: 'Dirección del cliente', example: 'Cra 15A #10B-240' })
+  @ApiProperty({
+    description: 'Dirección del cliente',
+    example: 'Cra 15A #10B-240',
+  })
   direction?: string;
 
   @Column({ nullable: true, type: 'numeric' })

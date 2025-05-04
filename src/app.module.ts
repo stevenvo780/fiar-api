@@ -15,7 +15,7 @@ import { TransactionModule } from './transaction/transaction.module';
 import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { ClientModule } from './client/client.module';
-import{UserModule} from './user/user.module';
+import { UserModule } from './user/user.module';
 import { WompiModule } from './wompi/wompi.module';
 
 @Module({

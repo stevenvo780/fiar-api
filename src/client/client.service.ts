@@ -23,7 +23,9 @@ export class ClientService {
       where: { document: data.document, user },
     });
     if (exists) {
-      throw new ConflictException('Ya existe un cliente con ese documento para este usuario');
+      throw new ConflictException(
+        'Ya existe un cliente con ese documento para este usuario',
+      );
     }
 
     const client = this.clientRepository.create({
@@ -34,9 +36,6 @@ export class ClientService {
     return this.clientRepository.save(client);
   }
 
-
-
-
   // async findAll(userId: string): Promise<Client[]> {
   //   return this.clientRepository.find({
   //     where: { user: { id: userId } },
@@ -44,27 +43,28 @@ export class ClientService {
   //   });
   // }
 
-
   //código nuevo; acaá añadí también dos filtros: blocked y city
-  async findAll(userId: string, filters: { blocked?: boolean; city?: string }): Promise<Client[]> {
+  async findAll(
+    userId: string,
+    filters: { blocked?: boolean; city?: string },
+  ): Promise<Client[]> {
     const where: any = {
       user: { id: userId },
     };
-  
+
     if (filters.blocked !== undefined) {
       where.blocked = filters.blocked;
     }
-  
+
     if (filters.city) {
       where.city = filters.city;
     }
-  
+
     return this.clientRepository.find({
       where,
       order: { createdAt: 'DESC' },
     });
   }
-  
 
   async findOne(id: number, userId: string): Promise<Client> {
     const client = await this.clientRepository.findOne({
@@ -73,7 +73,9 @@ export class ClientService {
     });
     if (!client) throw new NotFoundException('Cliente no encontrado');
     if (client.user.id !== userId) {
-      throw new ForbiddenException('No tiene permiso para acceder a este cliente');
+      throw new ForbiddenException(
+        'No tiene permiso para acceder a este cliente',
+      );
     }
     return client;
   }
@@ -85,7 +87,9 @@ export class ClientService {
     });
     if (!client) throw new NotFoundException('Cliente no encontrado');
     if (client.user.id !== user.id) {
-      throw new ForbiddenException('No tiene permiso para modificar este cliente');
+      throw new ForbiddenException(
+        'No tiene permiso para modificar este cliente',
+      );
     }
 
     if (data.document && data.document !== client.document) {
@@ -93,7 +97,9 @@ export class ClientService {
         where: { document: data.document, user },
       });
       if (exists && exists.id !== client.id) {
-        throw new ConflictException('Ya existe un cliente con ese documento para este usuario');
+        throw new ConflictException(
+          'Ya existe un cliente con ese documento para este usuario',
+        );
       }
     }
 
@@ -109,7 +115,9 @@ export class ClientService {
     });
     if (!client) throw new NotFoundException('Cliente no encontrado');
     if (client.user.id !== user.id) {
-      throw new ForbiddenException('No tiene permiso para eliminar este cliente');
+      throw new ForbiddenException(
+        'No tiene permiso para eliminar este cliente',
+      );
     }
     await this.clientRepository.delete(id);
   }

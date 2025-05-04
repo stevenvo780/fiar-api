@@ -55,7 +55,8 @@ export class User extends SharedProp {
   })
   profile?: Profile;
 
-  @OneToOne(() => Subscription, (subscription) => subscription.user, { //no va
+  @OneToOne(() => Subscription, (subscription) => subscription.user, {
+    //no va
     cascade: true,
     nullable: true,
   })

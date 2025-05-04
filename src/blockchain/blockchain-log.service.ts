@@ -22,7 +22,10 @@ export class BlockchainLogService {
     });
   }
 
-  async findByEntity(entity: string, entityId: string): Promise<BlockchainLog[]> {
+  async findByEntity(
+    entity: string,
+    entityId: string,
+  ): Promise<BlockchainLog[]> {
     return this.blockchainLogRepository.find({
       where: { entity, entityId },
       order: { createdAt: 'DESC' },
