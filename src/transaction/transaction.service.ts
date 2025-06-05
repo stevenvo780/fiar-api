@@ -11,8 +11,6 @@ import { User } from '../user/entities/user.entity';
 import { Client } from '../client/entities/client.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import axios from 'axios';
-import { BlockchainLogService } from '../blockchain/blockchain-log.service';
 
 @Injectable()
 export class TransactionService {
@@ -21,34 +19,24 @@ export class TransactionService {
     private readonly transactionRepository: Repository<Transaction>,
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
-    private readonly blockchainLogService: BlockchainLogService,
   ) {}
 
-  async create(data: CreateTransactionDto, user: User): Promise<Transaction> {
-    const lastTx = await this.transactionRepository.findOne({
-      where: { owner: { id: user.id } },
-      order: { createdAt: 'DESC' },
-    });
-    if (lastTx?.txn_hash) {
-      const statusResp = await axios.get(
-        `${process.env.BLOCKCHAIN_API_URL}/transaction_status/${lastTx.txn_hash}`,
-      );
-      if (statusResp.data.status !== 1) {
-        throw new BadRequestException(
-          'Integrity check failed: last transaction invalid',
-        );
-      }
-    }
-
+  // Helper to resolve or create client
+  private async resolveClient(
+    data: CreateTransactionDto,
+    user: User,
+  ): Promise<Client> {
     let client: Client;
     if (data.clientId) {
       client = await this.clientRepository.findOne({
         where: { id: parseInt(data.clientId, 10), user: { id: user.id } },
       });
-      if (!client) throw new NotFoundException('Cliente no encontrado por ID');
+      if (!client) {
+        throw new NotFoundException('Cliente no encontrado por ID');
+      }
     } else if (data.clientData) {
-      const { phone, document } = data.clientData;
-      let existing = null;
+      const { document, phone } = data.clientData as any;
+      let existing: Client | null = null;
       if (phone) {
         existing = await this.clientRepository.findOne({
           where: { phone, user: { id: user.id } },
@@ -73,43 +61,18 @@ export class TransactionService {
         'Se requiere clientId o clientData para crear transacción',
       );
     }
+    return client;
+  }
 
-    let transaction = this.transactionRepository.create({
+  async create(data: CreateTransactionDto, user: User): Promise<Transaction> {
+    // Blockchain functionality removed: only client assignment and saving transaction
+    const client = await this.resolveClient(data, user);
+    const transaction = this.transactionRepository.create({
       ...data,
       owner: user,
       client,
     });
-    transaction = await this.transactionRepository.save(transaction);
-    const payload = {
-      private_key: process.env.BLOCKCHAIN_PRIVATE_KEY,
-      to: process.env.BLOCKCHAIN_CONTRACT_ADDRESS,
-      data: `evento=transaccion;transaction_id=${
-        transaction.id
-      };timestamp=${transaction.createdAt.toISOString()}`,
-    };
-    const logResp = await axios.post(
-      `${process.env.BLOCKCHAIN_API_URL}/log_event`,
-      payload,
-      { headers: { 'Content-Type': 'application/json' } },
-    );
-    const txHash = logResp.data.tx_hash;
-
-    transaction.txn_hash = txHash;
-    await this.transactionRepository.save(transaction);
-
-    await this.blockchainLogService.create({
-      entity: 'transaction',
-      entityId: transaction.id,
-      txnHash: txHash,
-      contractAddress: process.env.BLOCKCHAIN_CONTRACT_ADDRESS,
-      network: process.env.BLOCKCHAIN_NETWORK,
-      blockNumber: logResp.data.block_number,
-      signature: txHash,
-      proof: logResp.data.logged_data
-        ? { logged: logResp.data.logged_data }
-        : undefined,
-    });
-    return transaction;
+    return this.transactionRepository.save(transaction);
   }
 
   async findAll(
