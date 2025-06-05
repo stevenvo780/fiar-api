@@ -17,7 +17,6 @@ import { ProfileModule } from './profile/profile.module';
 import { ClientModule } from './client/client.module';
 import { UserModule } from './user/user.module';
 import { WompiModule } from './wompi/wompi.module';
-import { BlockchainLogModule } from './blockchain/blockchain-log.module';
 
 @Module({
   imports: [
@@ -29,7 +28,6 @@ import { BlockchainLogModule } from './blockchain/blockchain-log.module';
     TransactionModule,
     UserModule,
     WompiModule,
-    BlockchainLogModule,
   ],
   controllers: [AppController],
   providers: [AppService, AppProvider],

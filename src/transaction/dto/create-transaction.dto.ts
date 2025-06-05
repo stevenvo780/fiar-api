@@ -49,13 +49,4 @@ export class CreateTransactionDto {
     example: '{ "nota": "Compra a crédito" }',
   })
   detail?: Record<string, any>;
-
-  @IsOptional()
-  @IsString()
-  @ApiProperty({
-    description: 'Hash de la transacción en blockchain',
-    example: '0xabc123hash',
-    required: false,
-  })
-  txn_hash?: string;
 }

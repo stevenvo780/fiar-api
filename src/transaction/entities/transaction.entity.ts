@@ -49,11 +49,4 @@ export class Transaction extends SharedProp {
     example: '{}',
   })
   detail?: Record<string, any>;
-
-  @Column({ type: 'text', nullable: true })
-  @ApiProperty({
-    description: 'Hash de transacción en blockchain',
-    example: 'uuid',
-  })
-  txn_hash?: string;
 }
