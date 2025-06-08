@@ -235,13 +235,11 @@ export class TransactionService {
     const originalAmount = transaction.amount;
     const originalOperation = transaction.operation;
 
-    // Si se está cambiando el estado a approved/completed y antes no estaba
     const isBecomingApproved =
       (data.status === 'approved' || data.status === 'completed') &&
       originalStatus !== 'approved' &&
       originalStatus !== 'completed';
 
-    // Si se está cambiando el estado desde approved/completed a otro
     const isBecomingPending =
       (originalStatus === 'approved' || originalStatus === 'completed') &&
       data.status &&
@@ -253,9 +251,7 @@ export class TransactionService {
       transaction,
     );
 
-    // Manejar cambios en el balance según el cambio de estado
     if (isBecomingApproved) {
-      // Aplicar el efecto de la transacción al balance
       if (transaction.operation === 'expense') {
         const hasSufficientCredits =
           await this.clientService.checkSufficientCredits(
@@ -263,7 +259,6 @@ export class TransactionService {
             transaction.amount,
           );
         if (!hasSufficientCredits) {
-          // Revertir la transacción si no hay créditos suficientes
           transaction.status = originalStatus;
           await this.transactionRepository.save(transaction);
           const balance = await this.clientService.getBalance(
@@ -271,7 +266,7 @@ export class TransactionService {
             user.id,
           );
           throw new BadRequestException(
-            `No se puede aprobar la transacción. Créditos insuficientes. Créditos disponibles: ${balance.current_balance}, Monto solicitado: ${transaction.amount}`,
+            `Créditos insuficientes. Créditos disponibles: ${balance.current_balance}, Monto solicitado: ${transaction.amount}`,
           );
         }
       }
@@ -281,7 +276,6 @@ export class TransactionService {
         transaction.operation,
       );
     } else if (isBecomingPending) {
-      // Revertir el efecto de la transacción en el balance
       const reverseOperation =
         originalOperation === 'expense' ? 'income' : 'expense';
       await this.clientService.updateCredits(
