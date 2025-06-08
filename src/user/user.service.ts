@@ -26,7 +26,6 @@ export class UserService {
     return user;
   }
 
-  // Esta función ahora acepta cualquier tipo para planType ya que puede venir como PlanType o como PaymentSourcePlanType
   async confirmSubscription(
     planType: any,
     customerId: string,
@@ -41,7 +40,6 @@ export class UserService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    // Convertimos el tipo de plan a PlanType para asegurarnos de que sea compatible
     const subscriptionPlanType = planType as PlanType;
 
     if (user.subscription) {
