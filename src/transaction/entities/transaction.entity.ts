@@ -43,6 +43,14 @@ export class Transaction extends SharedProp {
   @ApiProperty({ description: 'Estado de la transacción', example: 'pending' })
   status: string;
 
+  @Column({ type: 'text' })
+  @ApiProperty({
+    description: 'Tipo de operación (entrada o salida de créditos)',
+    example: 'expense',
+    enum: ['income', 'expense'],
+  })
+  operation: 'income' | 'expense';
+
   @Column({ type: 'json', nullable: true })
   @ApiProperty({
     description: 'Detalles adicionales de la transacción',

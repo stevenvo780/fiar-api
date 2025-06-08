@@ -35,6 +35,15 @@ export class CreateClientDto {
   credit_limit?: number;
 
   @IsOptional()
+  @IsNumber()
+  @ApiProperty({
+    description:
+      'Saldo inicial del cliente (por defecto será igual al límite de crédito)',
+    example: 100000.0,
+  })
+  current_balance?: number;
+
+  @IsOptional()
   @IsBoolean()
   @ApiProperty({
     description: 'Indica si el cliente es de confianza',

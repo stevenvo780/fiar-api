@@ -111,6 +111,28 @@ export class ClientController {
   }
 
   @ApiOperation({
+    summary: 'Obtener el saldo actual de un cliente',
+  })
+  @ApiOkResponse({
+    description: 'Saldo actual del cliente',
+    schema: {
+      type: 'object',
+      properties: {
+        current_balance: { type: 'number' },
+        credit_limit: { type: 'number' },
+      },
+    },
+  })
+  @UseGuards(FirebaseAuthGuard)
+  @Get(':id/balance')
+  getBalance(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: RequestWithUser,
+  ): Promise<{ current_balance: number; credit_limit: number }> {
+    return this.clientService.getBalance(id, req.user.id);
+  }
+
+  @ApiOperation({
     summary: 'Crear un nuevo cliente',
   })
   @ApiBearerAuth()

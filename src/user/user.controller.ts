@@ -95,8 +95,6 @@ export class UserController {
     @Request() req: RequestWithUser,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<User> {
-    console.log('updateProfile req.user:', req.user);
-    console.log('updateProfile updateUserDto:', updateUserDto);
     return this.userService.update(req.user.id, updateUserDto);
   }
 

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions } from 'typeorm';
@@ -32,6 +33,8 @@ export class ClientService {
     const client = this.clientRepository.create({
       ...data,
       user,
+      // Si no se especifica current_balance, usar el credit_limit como saldo inicial
+      current_balance: data.current_balance ?? data.credit_limit ?? 0,
     });
 
     return this.clientRepository.save(client);
@@ -140,5 +143,71 @@ export class ClientService {
       );
     }
     await this.clientRepository.delete(id);
+  }
+
+  /**
+   * Verificar si el cliente tiene suficientes créditos para una transacción
+   */
+  async checkSufficientCredits(
+    clientId: number,
+    amount: number,
+  ): Promise<boolean> {
+    const client = await this.clientRepository.findOne({
+      where: { id: clientId },
+    });
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+    return client.current_balance >= amount;
+  }
+
+  /**
+   * Actualizar el balance de créditos del cliente
+   */
+  async updateCredits(
+    clientId: number,
+    amount: number,
+    operation: 'income' | 'expense',
+  ): Promise<Client> {
+    const client = await this.clientRepository.findOne({
+      where: { id: clientId },
+    });
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+
+    if (operation === 'expense') {
+      if (client.current_balance < amount) {
+        throw new BadRequestException(
+          `Créditos insuficientes. Créditos disponibles: ${client.current_balance}, Monto solicitado: ${amount}`,
+        );
+      }
+      client.current_balance = Number(client.current_balance) - Number(amount);
+    } else {
+      // Para income, sumamos créditos pero no podemos exceder el límite
+      const newBalance = Number(client.current_balance) + Number(amount);
+      if (newBalance > client.credit_limit) {
+        throw new BadRequestException(
+          `El balance no puede exceder el límite de crédito de ${client.credit_limit}`,
+        );
+      }
+      client.current_balance = newBalance;
+    }
+
+    return await this.clientRepository.save(client);
+  }
+
+  /**
+   * Obtener el balance actual de créditos de un cliente
+   */
+  async getBalance(
+    clientId: number,
+    userId: string,
+  ): Promise<{ current_balance: number; credit_limit: number }> {
+    const client = await this.findOne(clientId, userId);
+    return {
+      current_balance: Number(client.current_balance),
+      credit_limit: Number(client.credit_limit),
+    };
   }
 }
