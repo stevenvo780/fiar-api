@@ -33,7 +33,6 @@ export class ClientService {
     const client = this.clientRepository.create({
       ...data,
       user,
-      // Si no se especifica current_balance, usar el credit_limit como saldo inicial
       current_balance: data.current_balance ?? data.credit_limit ?? 0,
     });
 

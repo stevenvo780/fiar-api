@@ -119,7 +119,7 @@ export class TransactionController {
   @ApiOperation({
     summary: 'Obtener una transacción por ID',
   })
-  @ApiOkResponse({ type: Transaction }) // Transaction ya incluye el cliente
+  @ApiOkResponse({ type: Transaction })
   @UseGuards(FirebaseAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req: RequestWithUser) {

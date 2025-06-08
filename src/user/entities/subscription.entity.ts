@@ -23,7 +23,6 @@ export const PLAN_DETAILS: Record<
 > = {
   [PlanType.FREE]: {
     price: 0,
-    // TODO : set a limit for free plan
     monthlyOrderLimit: 2000000,
     name: PlanType.FREE,
     sku: PlanType.FREE,

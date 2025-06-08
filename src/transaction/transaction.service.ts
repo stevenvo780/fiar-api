@@ -23,7 +23,6 @@ export class TransactionService {
     private readonly clientService: ClientService,
   ) {}
 
-  // Helper to resolve or create client
   private async resolveClient(
     data: CreateTransactionDto,
     user: User,
@@ -300,7 +299,6 @@ export class TransactionService {
       );
     }
 
-    // Si la transacción estaba aprobada, revertir su efecto en el balance
     if (
       transaction.status === 'approved' ||
       transaction.status === 'completed'
