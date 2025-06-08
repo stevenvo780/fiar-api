@@ -23,7 +23,7 @@ export class Client extends SharedProp {
   })
   user: User;
 
-  @Column({ nullable: false })
+  @Column({ nullable: false, unique: true })
   @ApiProperty({
     description: 'Documento de identificación del cliente',
     example: '1234567890',
@@ -84,7 +84,14 @@ export class Client extends SharedProp {
   })
   direction?: string;
 
-  @Column({ nullable: true, type: 'numeric' })
+  @Column({ nullable: true, type: 'numeric', unique: true })
   @ApiProperty({ description: 'Teléfono de contacto', example: '3137898941' })
   phone?: number;
+
+  @Column({ nullable: true, unique: true })
+  @ApiProperty({
+    description: 'Correo electrónico del cliente',
+    example: 'correo@correo.com',
+  })
+  email?: string;
 }
