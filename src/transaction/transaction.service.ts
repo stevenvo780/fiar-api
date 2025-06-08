@@ -75,6 +75,18 @@ export class TransactionService {
       );
     }
 
+    if (data.operation === 'expense') {
+      const hasSufficientCredits =
+        await this.clientService.checkSufficientCredits(client.id, data.amount);
+
+      if (!hasSufficientCredits) {
+        const balance = await this.clientService.getBalance(client.id, user.id);
+        throw new BadRequestException(
+          `Créditos insuficientes. Créditos disponibles: ${balance.current_balance}, Monto solicitado: ${data.amount}`,
+        );
+      }
+    }
+
     const transaction = this.transactionRepository.create({
       ...data,
       owner: user,
@@ -87,16 +99,11 @@ export class TransactionService {
       savedTransaction.status === 'approved' ||
       savedTransaction.status === 'completed'
     ) {
-      // Ajuste directo de saldo sin validaciones
-      const clientToUpdate = await this.clientRepository.findOne({
-        where: { id: client.id },
-      });
-      clientToUpdate.current_balance =
-        data.operation === 'expense'
-          ? Number(clientToUpdate.current_balance) - Number(data.amount)
-          : Number(clientToUpdate.current_balance) + Number(data.amount);
-      const updatedClient = await this.clientRepository.save(clientToUpdate);
-      savedTransaction.client = updatedClient;
+      await this.clientService.updateCredits(
+        client.id,
+        data.amount,
+        data.operation,
+      );
     }
 
     return savedTransaction;
@@ -172,9 +179,7 @@ export class TransactionService {
     }
 
     if (filters?.order === 'asc') {
-      query.orderBy('transaction.amount', 'ASC');
-    } else if (filters?.order === 'desc') {
-      query.orderBy('transaction.amount', 'DESC');
+      query.orderBy('transaction.createdAt', 'ASC');
     } else {
       query.orderBy('transaction.createdAt', 'DESC');
     }
@@ -227,6 +232,7 @@ export class TransactionService {
 
     const originalStatus = transaction.status;
     const originalAmount = transaction.amount;
+    const originalOperation = transaction.operation;
 
     // Si se está cambiando el estado a approved/completed y antes no estaba
     const isBecomingApproved =
@@ -245,23 +251,45 @@ export class TransactionService {
     const updatedTransaction = await this.transactionRepository.save(
       transaction,
     );
+
+    // Manejar cambios en el balance según el cambio de estado
     if (isBecomingApproved) {
-      // Ajuste directo de saldo sin validación
-      const clientEntity = await this.clientRepository.findOne({
-        where: { id: transaction.client.id },
-      });
-      clientEntity.current_balance =
-        Number(clientEntity.current_balance) - Number(transaction.amount);
-      await this.clientRepository.save(clientEntity);
+      // Aplicar el efecto de la transacción al balance
+      if (transaction.operation === 'expense') {
+        const hasSufficientCredits =
+          await this.clientService.checkSufficientCredits(
+            transaction.client.id,
+            transaction.amount,
+          );
+        if (!hasSufficientCredits) {
+          // Revertir la transacción si no hay créditos suficientes
+          transaction.status = originalStatus;
+          await this.transactionRepository.save(transaction);
+          const balance = await this.clientService.getBalance(
+            transaction.client.id,
+            user.id,
+          );
+          throw new BadRequestException(
+            `No se puede aprobar la transacción. Créditos insuficientes. Créditos disponibles: ${balance.current_balance}, Monto solicitado: ${transaction.amount}`,
+          );
+        }
+      }
+      await this.clientService.updateCredits(
+        transaction.client.id,
+        transaction.amount,
+        transaction.operation,
+      );
+    } else if (isBecomingPending) {
+      // Revertir el efecto de la transacción en el balance
+      const reverseOperation =
+        originalOperation === 'expense' ? 'income' : 'expense';
+      await this.clientService.updateCredits(
+        transaction.client.id,
+        originalAmount,
+        reverseOperation,
+      );
     }
-    if (isBecomingPending) {
-      const clientEntity = await this.clientRepository.findOne({
-        where: { id: transaction.client.id },
-      });
-      clientEntity.current_balance =
-        Number(clientEntity.current_balance) + Number(originalAmount);
-      await this.clientRepository.save(clientEntity);
-    }
+
     return updatedTransaction;
   }
 
@@ -276,6 +304,21 @@ export class TransactionService {
         'No tiene permiso para eliminar esta transacción',
       );
     }
-    await this.transactionRepository.remove(transaction);
+
+    // Si la transacción estaba aprobada, revertir su efecto en el balance
+    if (
+      transaction.status === 'approved' ||
+      transaction.status === 'completed'
+    ) {
+      const reverseOperation =
+        transaction.operation === 'expense' ? 'income' : 'expense';
+      await this.clientService.updateCredits(
+        transaction.client.id,
+        transaction.amount,
+        reverseOperation,
+      );
+    }
+
+    await this.transactionRepository.delete(id);
   }
 }
