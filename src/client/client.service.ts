@@ -158,7 +158,7 @@ export class ClientService {
     if (!client) {
       throw new NotFoundException('Cliente no encontrado');
     }
-    return client.current_balance >= amount;
+    return Number(client.current_balance) >= Number(amount);
   }
 
   /**
@@ -175,21 +175,13 @@ export class ClientService {
     if (!client) {
       throw new NotFoundException('Cliente no encontrado');
     }
-
     if (operation === 'expense') {
-      if (client.current_balance < amount) {
-        throw new BadRequestException(
-          `Créditos insuficientes. Créditos disponibles: ${client.current_balance}, Monto solicitado: ${amount}`,
-        );
-      }
+      await this.checkSufficientCredits(clientId, amount);
       client.current_balance = Number(client.current_balance) - Number(amount);
     } else {
-      // Para income, sumamos créditos pero no podemos exceder el límite
       const newBalance = Number(client.current_balance) + Number(amount);
       if (newBalance > client.credit_limit) {
-        throw new BadRequestException(
-          `El balance no puede exceder el límite de crédito de ${client.credit_limit}`,
-        );
+        client.credit_limit = newBalance;
       }
       client.current_balance = newBalance;
     }
