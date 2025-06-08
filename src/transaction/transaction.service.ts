@@ -223,6 +223,7 @@ export class TransactionService {
       where: { id },
       relations: ['owner', 'client'],
     });
+    console.log(transaction);
     if (!transaction) throw new NotFoundException('Transacción no encontrada');
     if (transaction.owner.id !== user.id) {
       throw new ForbiddenException(
