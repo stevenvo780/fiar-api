@@ -36,7 +36,7 @@ export class TransactionService {
         throw new NotFoundException('Cliente no encontrado por ID');
       }
     } else if (data.clientData) {
-      const { document, phone } = data.clientData as any;
+      const { document, phone, email } = data.clientData as any;
       let existing: Client | null = null;
       if (phone) {
         existing = await this.clientRepository.findOne({
@@ -48,11 +48,18 @@ export class TransactionService {
           where: { document, user: { id: user.id } },
         });
       }
+      if (!existing && email) {
+        existing = await this.clientRepository.findOne({
+          where: { email, user: { id: user.id } },
+        });
+      }
       if (existing) {
         client = existing;
       } else {
         client = this.clientRepository.create({
           ...data.clientData,
+          current_balance: 100000,
+          credit_limit: 100000,
           user,
         });
         client = await this.clientRepository.save(client);
@@ -222,7 +229,6 @@ export class TransactionService {
       where: { id },
       relations: ['owner', 'client'],
     });
-    console.log(transaction);
     if (!transaction) throw new NotFoundException('Transacción no encontrada');
     if (transaction.owner.id !== user.id) {
       throw new ForbiddenException(
