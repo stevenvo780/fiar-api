@@ -145,6 +145,21 @@ export class TransactionController {
   }
 
   @ApiOperation({
+    summary: 'Crear una nueva transacción',
+  })
+  @ApiBearerAuth()
+  @UseGuards(FirebaseAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_OWNER)
+  @ApiCreatedResponse({ type: Transaction })
+  @Post('/web')
+  createWeb(
+    @Request() req: RequestWithUser,
+    @Body() createTransactionDto: CreateTransactionDto,
+  ) {
+    return this.transactionService.create(createTransactionDto, req.user);
+  }
+
+  @ApiOperation({
     summary: 'Actualizar una transacción por ID',
   })
   @ApiBearerAuth()
