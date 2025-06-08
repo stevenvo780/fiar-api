@@ -43,6 +43,15 @@ export class CreateTransactionDto {
   })
   status: string;
 
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Tipo de operación de la transacción',
+    example: 'expense',
+    enum: ['income', 'expense'],
+  })
+  operation: 'income' | 'expense';
+
   @IsOptional()
   @ApiProperty({
     description: 'Detalles adicionales de la transacción',

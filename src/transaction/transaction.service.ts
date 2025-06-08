@@ -11,6 +11,7 @@ import { User } from '../user/entities/user.entity';
 import { Client } from '../client/entities/client.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { ClientService } from '../client/client.service';
 
 @Injectable()
 export class TransactionService {
@@ -19,6 +20,7 @@ export class TransactionService {
     private readonly transactionRepository: Repository<Transaction>,
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
+    private readonly clientService: ClientService,
   ) {}
 
   // Helper to resolve or create client
@@ -65,14 +67,39 @@ export class TransactionService {
   }
 
   async create(data: CreateTransactionDto, user: User): Promise<Transaction> {
-    // Blockchain functionality removed: only client assignment and saving transaction
     const client = await this.resolveClient(data, user);
+
+    if (!['income', 'expense'].includes(data.operation)) {
+      throw new BadRequestException(
+        'Tipo de operación inválido. Debe ser "income" o "expense"',
+      );
+    }
+
     const transaction = this.transactionRepository.create({
       ...data,
       owner: user,
       client,
     });
-    return this.transactionRepository.save(transaction);
+
+    const savedTransaction = await this.transactionRepository.save(transaction);
+
+    if (
+      savedTransaction.status === 'approved' ||
+      savedTransaction.status === 'completed'
+    ) {
+      // Ajuste directo de saldo sin validaciones
+      const clientToUpdate = await this.clientRepository.findOne({
+        where: { id: client.id },
+      });
+      clientToUpdate.current_balance =
+        data.operation === 'expense'
+          ? Number(clientToUpdate.current_balance) - Number(data.amount)
+          : Number(clientToUpdate.current_balance) + Number(data.amount);
+      const updatedClient = await this.clientRepository.save(clientToUpdate);
+      savedTransaction.client = updatedClient;
+    }
+
+    return savedTransaction;
   }
 
   async findAll(
@@ -189,7 +216,7 @@ export class TransactionService {
   ): Promise<Transaction> {
     const transaction = await this.transactionRepository.findOne({
       where: { id },
-      relations: ['owner'],
+      relations: ['owner', 'client'],
     });
     if (!transaction) throw new NotFoundException('Transacción no encontrada');
     if (transaction.owner.id !== user.id) {
@@ -198,14 +225,50 @@ export class TransactionService {
       );
     }
 
+    const originalStatus = transaction.status;
+    const originalAmount = transaction.amount;
+
+    // Si se está cambiando el estado a approved/completed y antes no estaba
+    const isBecomingApproved =
+      (data.status === 'approved' || data.status === 'completed') &&
+      originalStatus !== 'approved' &&
+      originalStatus !== 'completed';
+
+    // Si se está cambiando el estado desde approved/completed a otro
+    const isBecomingPending =
+      (originalStatus === 'approved' || originalStatus === 'completed') &&
+      data.status &&
+      data.status !== 'approved' &&
+      data.status !== 'completed';
+
     Object.assign(transaction, data);
-    return await this.transactionRepository.save(transaction);
+    const updatedTransaction = await this.transactionRepository.save(
+      transaction,
+    );
+    if (isBecomingApproved) {
+      // Ajuste directo de saldo sin validación
+      const clientEntity = await this.clientRepository.findOne({
+        where: { id: transaction.client.id },
+      });
+      clientEntity.current_balance =
+        Number(clientEntity.current_balance) - Number(transaction.amount);
+      await this.clientRepository.save(clientEntity);
+    }
+    if (isBecomingPending) {
+      const clientEntity = await this.clientRepository.findOne({
+        where: { id: transaction.client.id },
+      });
+      clientEntity.current_balance =
+        Number(clientEntity.current_balance) + Number(originalAmount);
+      await this.clientRepository.save(clientEntity);
+    }
+    return updatedTransaction;
   }
 
   async remove(id: string, user: User): Promise<void> {
     const transaction = await this.transactionRepository.findOne({
       where: { id },
-      relations: ['owner'],
+      relations: ['owner', 'client'],
     });
     if (!transaction) throw new NotFoundException('Transacción no encontrada');
     if (transaction.owner.id !== user.id) {
@@ -213,6 +276,6 @@ export class TransactionService {
         'No tiene permiso para eliminar esta transacción',
       );
     }
-    await this.transactionRepository.delete(id);
+    await this.transactionRepository.remove(transaction);
   }
 }

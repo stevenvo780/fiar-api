@@ -45,6 +45,13 @@ export class Client extends SharedProp {
   })
   credit_limit: number;
 
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @ApiProperty({
+    description: 'Saldo disponible actual del cliente',
+    example: 50000.0,
+  })
+  current_balance: number;
+
   @Column({ type: 'boolean', default: false })
   @ApiProperty({
     description: 'Indica si el cliente es de confianza',
