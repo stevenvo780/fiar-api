@@ -64,4 +64,15 @@ export class CreateProfileDto {
     required: false,
   })
   commerce_name?: string;
+
+  @IsOptional()
+  @IsObject()
+  @ApiProperty({
+    description: 'Plugin configurations (enabled flag + API key)',
+    example: {
+      sinergia: { enabled: false, apiKey: '' },
+    },
+    required: false,
+  })
+  plugins?: Record<string, { enabled: boolean; apiKey: string }>;
 }

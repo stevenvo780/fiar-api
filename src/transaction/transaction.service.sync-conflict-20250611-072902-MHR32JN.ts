@@ -11,7 +11,6 @@ import { User } from '../user/entities/user.entity';
 import { Client } from '../client/entities/client.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { ClientService } from '../client/client.service';
 
 @Injectable()
 export class TransactionService {
@@ -20,9 +19,9 @@ export class TransactionService {
     private readonly transactionRepository: Repository<Transaction>,
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
-    private readonly clientService: ClientService,
   ) {}
 
+  // Helper to resolve or create client
   private async resolveClient(
     data: CreateTransactionDto,
     user: User,
@@ -36,7 +35,7 @@ export class TransactionService {
         throw new NotFoundException('Cliente no encontrado por ID');
       }
     } else if (data.clientData) {
-      const { document, phone, email } = data.clientData as any;
+      const { document, phone } = data.clientData as any;
       let existing: Client | null = null;
       if (phone) {
         existing = await this.clientRepository.findOne({
@@ -48,18 +47,11 @@ export class TransactionService {
           where: { document, user: { id: user.id } },
         });
       }
-      if (!existing && email) {
-        existing = await this.clientRepository.findOne({
-          where: { email, user: { id: user.id } },
-        });
-      }
       if (existing) {
         client = existing;
       } else {
         client = this.clientRepository.create({
           ...data.clientData,
-          current_balance: 100000,
-          credit_limit: 100000,
           user,
         });
         client = await this.clientRepository.save(client);
@@ -73,46 +65,14 @@ export class TransactionService {
   }
 
   async create(data: CreateTransactionDto, user: User): Promise<Transaction> {
+    // Blockchain functionality removed: only client assignment and saving transaction
     const client = await this.resolveClient(data, user);
-
-    if (!['income', 'expense'].includes(data.operation)) {
-      throw new BadRequestException(
-        'Tipo de operación inválido. Debe ser "income" o "expense"',
-      );
-    }
-
-    if (data.operation === 'expense') {
-      const hasSufficientCredits =
-        await this.clientService.checkSufficientCredits(client.id, data.amount);
-
-      if (!hasSufficientCredits) {
-        const balance = await this.clientService.getBalance(client.id, user.id);
-        throw new BadRequestException(
-          `Créditos insuficientes. Créditos disponibles: ${balance.current_balance}, Monto solicitado: ${data.amount}`,
-        );
-      }
-    }
-
     const transaction = this.transactionRepository.create({
       ...data,
       owner: user,
       client,
     });
-
-    const savedTransaction = await this.transactionRepository.save(transaction);
-
-    if (
-      savedTransaction.status === 'approved' ||
-      savedTransaction.status === 'completed'
-    ) {
-      await this.clientService.updateCredits(
-        client.id,
-        data.amount,
-        data.operation,
-      );
-    }
-
-    return savedTransaction;
+    return this.transactionRepository.save(transaction);
   }
 
   async findAll(
@@ -185,7 +145,9 @@ export class TransactionService {
     }
 
     if (filters?.order === 'asc') {
-      query.orderBy('transaction.createdAt', 'ASC');
+      query.orderBy('transaction.amount', 'ASC');
+    } else if (filters?.order === 'desc') {
+      query.orderBy('transaction.amount', 'DESC');
     } else {
       query.orderBy('transaction.createdAt', 'DESC');
     }
@@ -227,7 +189,7 @@ export class TransactionService {
   ): Promise<Transaction> {
     const transaction = await this.transactionRepository.findOne({
       where: { id },
-      relations: ['owner', 'client'],
+      relations: ['owner'],
     });
     if (!transaction) throw new NotFoundException('Transacción no encontrada');
     if (transaction.owner.id !== user.id) {
@@ -236,67 +198,14 @@ export class TransactionService {
       );
     }
 
-    const originalStatus = transaction.status;
-    const originalAmount = transaction.amount;
-    const originalOperation = transaction.operation;
-
-    const isBecomingApproved =
-      (data.status === 'approved' || data.status === 'completed') &&
-      originalStatus !== 'approved' &&
-      originalStatus !== 'completed';
-
-    const isBecomingPending =
-      (originalStatus === 'approved' || originalStatus === 'completed') &&
-      data.status &&
-      data.status !== 'approved' &&
-      data.status !== 'completed';
-
     Object.assign(transaction, data);
-    const updatedTransaction = await this.transactionRepository.save(
-      transaction,
-    );
-
-    if (isBecomingApproved) {
-      if (transaction.operation === 'expense') {
-        const hasSufficientCredits =
-          await this.clientService.checkSufficientCredits(
-            transaction.client.id,
-            transaction.amount,
-          );
-        if (!hasSufficientCredits) {
-          transaction.status = originalStatus;
-          await this.transactionRepository.save(transaction);
-          const balance = await this.clientService.getBalance(
-            transaction.client.id,
-            user.id,
-          );
-          throw new BadRequestException(
-            `Créditos insuficientes. Créditos disponibles: ${balance.current_balance}, Monto solicitado: ${transaction.amount}`,
-          );
-        }
-      }
-      await this.clientService.updateCredits(
-        transaction.client.id,
-        transaction.amount,
-        transaction.operation,
-      );
-    } else if (isBecomingPending) {
-      const reverseOperation =
-        originalOperation === 'expense' ? 'income' : 'expense';
-      await this.clientService.updateCredits(
-        transaction.client.id,
-        originalAmount,
-        reverseOperation,
-      );
-    }
-
-    return updatedTransaction;
+    return await this.transactionRepository.save(transaction);
   }
 
   async remove(id: string, user: User): Promise<void> {
     const transaction = await this.transactionRepository.findOne({
       where: { id },
-      relations: ['owner', 'client'],
+      relations: ['owner'],
     });
     if (!transaction) throw new NotFoundException('Transacción no encontrada');
     if (transaction.owner.id !== user.id) {
@@ -304,74 +213,6 @@ export class TransactionService {
         'No tiene permiso para eliminar esta transacción',
       );
     }
-
-    if (
-      transaction.status === 'approved' ||
-      transaction.status === 'completed'
-    ) {
-      const reverseOperation =
-        transaction.operation === 'expense' ? 'income' : 'expense';
-      await this.clientService.updateCredits(
-        transaction.client.id,
-        transaction.amount,
-        reverseOperation,
-      );
-    }
-
     await this.transactionRepository.delete(id);
-  }
-
-  // Method to find transaction by invoice ID (for plugin integration)
-  async findByInvoiceId(invoiceId: number): Promise<Transaction | null> {
-    const transaction = await this.transactionRepository.findOne({
-      where: {
-        detail: { invoiceId } as any
-      },
-      relations: ['owner', 'client'],
-    });
-    return transaction;
-  }
-
-  // Method to update transaction by invoice ID (for plugin integration)
-  async updateByInvoiceId(invoiceId: number, updateData: Partial<Transaction>): Promise<Transaction | null> {
-    const transaction = await this.findByInvoiceId(invoiceId);
-    if (!transaction) {
-      return null;
-    }
-
-    const originalStatus = transaction.status;
-    
-    Object.assign(transaction, updateData);
-    const updatedTransaction = await this.transactionRepository.save(transaction);
-
-    // Handle credit updates when status changes to approved
-    const isBecomingApproved =
-      (updateData.status === 'approved' || updateData.status === 'completed') &&
-      originalStatus !== 'approved' &&
-      originalStatus !== 'completed';
-    
-    if (isBecomingApproved) {
-      await this.clientService.updateCredits(
-        transaction.client.id,
-        transaction.amount,
-        transaction.operation,
-      );
-    }
-
-    return updatedTransaction;
-  }
-
-  // Create method that accepts userId as string (for plugin integration)
-  async createFromUserId(data: CreateTransactionDto, userId: string): Promise<Transaction> {
-    // Find user by ID
-    const user = await this.transactionRepository.manager.findOne(User, {
-      where: { id: userId }
-    });
-    
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
-    return this.create(data, user);
   }
 }

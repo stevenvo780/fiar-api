@@ -19,6 +19,7 @@ export class ProfileService {
   }
 
   async upsert(userId: string, dto: CreateProfileDto): Promise<Profile> {
+    console.log(dto);
     const user = await this.userRepository.findOneBy({ id: userId.toString() });
     if (!user) {
       throw new NotFoundException('User not found');

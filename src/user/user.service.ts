@@ -5,6 +5,7 @@ import { User, UserRole } from './entities/user.entity';
 import { FindUsersDto } from './dto/find-users.dto';
 import { Subscription, PlanType } from './entities/subscription.entity';
 import { PaymentSource } from 'src/wompi/entities/payment-source.entity';
+import { Profile } from 'src/profile/entities/profile.entity';
 
 @Injectable()
 export class UserService {
@@ -141,6 +142,24 @@ export class UserService {
   }
 
   async update(id: string, updateData: Partial<User>): Promise<User> {
+    if ((updateData as any).plugins) {
+      const user = await this.userRepository.findOne({
+        where: { id },
+        relations: ['profile'],
+      });
+      if (!user.profile) {
+        const profile = new Profile();
+        profile.user = user;
+        profile.plugins = (updateData as any).plugins;
+        user.profile = profile;
+      }
+
+      if (user && user.profile) {
+        user.profile.plugins = (updateData as any).plugins;
+        await this.userRepository.manager.save(user.profile);
+      }
+      delete (updateData as any).plugins;
+    }
     await this.userRepository.update(id, updateData);
     return this.findOne(id);
   }

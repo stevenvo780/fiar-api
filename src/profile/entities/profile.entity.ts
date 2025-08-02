@@ -37,4 +37,13 @@ export class Profile extends SharedProp {
     nullable: true,
   })
   commerce_name?: string;
+
+  @Column('json', { default: {} })
+  @ApiProperty({
+    description: 'Plugin configurations (enabled flag + API key)',
+    example: {
+      sinergia: { enabled: false, apiKey: '' },
+    },
+  })
+  plugins: Record<string, { enabled: boolean; apiKey: string }>;
 }
