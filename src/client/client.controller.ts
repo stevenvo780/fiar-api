@@ -16,6 +16,7 @@ import { ClientService } from './client.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard';
+import { ApiKeyAuthGuard } from '../auth/api-key-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../user/entities/user.entity';
@@ -41,6 +42,41 @@ class PaginatedClientsResponse extends PaginatedResponseDto<Client> {
 @Controller('clients')
 export class ClientController {
   constructor(private readonly clientService: ClientService) {}
+
+  @ApiOperation({
+    summary: 'Verificar si un cliente está en lista blanca FIAR (Flujo 3)',
+    description: 'Endpoint seguro para que Hub Central verifique elegibilidad de crédito FIAR'
+  })
+  @ApiOkResponse({
+    description: 'Estado de elegibilidad del cliente',
+    schema: {
+      type: 'object',
+      properties: {
+        eligible: { type: 'boolean' },
+        clientId: { type: 'number' },
+        creditLimit: { type: 'number' },
+        currentBalance: { type: 'number' },
+        availableCredit: { type: 'number' },
+        status: { type: 'string' },
+        reason: { type: 'string' }
+      }
+    }
+  })
+  @UseGuards(ApiKeyAuthGuard)
+  @Get('whitelist-check/:document')
+  async checkWhitelist(
+    @Param('document') document: string,
+  ): Promise<{
+    eligible: boolean;
+    clientId?: number;
+    creditLimit?: number;
+    currentBalance?: number;
+    availableCredit?: number;
+    status: string;
+    reason: string;
+  }> {
+    return this.clientService.checkWhitelistEligibility(document);
+  }
 
   @ApiOperation({
     summary:

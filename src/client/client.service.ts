@@ -201,4 +201,75 @@ export class ClientService {
       credit_limit: Number(client.credit_limit),
     };
   }
+
+  /**
+   * Verificar elegibilidad de crédito FIAR por documento (Flujo 3)
+   * Usado por Hub Central para validar si cliente está en lista blanca
+   */
+  async checkWhitelistEligibility(document: string): Promise<{
+    eligible: boolean;
+    clientId?: number;
+    creditLimit?: number;
+    currentBalance?: number;
+    availableCredit?: number;
+    status: string;
+    reason: string;
+  }> {
+    try {
+      // Buscar cliente por documento en la base de datos FIAR
+      const client = await this.clientRepository.findOne({
+        where: { document },
+        relations: ['user'],
+      });
+
+      if (!client) {
+        return {
+          eligible: false,
+          status: 'not_found',
+          reason: 'Cliente no encontrado en lista blanca FIAR',
+        };
+      }
+
+      // Verificar si el cliente está bloqueado
+      if (client.blocked) {
+        return {
+          eligible: false,
+          clientId: client.id,
+          creditLimit: Number(client.credit_limit),
+          currentBalance: Number(client.current_balance),
+          availableCredit: 0,
+          status: 'blocked',
+          reason: 'Cliente bloqueado para créditos FIAR',
+        };
+      }
+
+      // Calcular crédito disponible
+      const currentBalance = Number(client.current_balance);
+      const creditLimit = Number(client.credit_limit);
+      const availableCredit = Math.max(0, creditLimit - currentBalance);
+
+      // Cliente elegible si tiene crédito disponible
+      const eligible = availableCredit > 0;
+
+      return {
+        eligible,
+        clientId: client.id,
+        creditLimit,
+        currentBalance,
+        availableCredit,
+        status: eligible ? 'eligible' : 'no_credit',
+        reason: eligible 
+          ? `Cliente elegible con $${availableCredit.toFixed(2)} crédito disponible`
+          : 'Cliente sin crédito disponible',
+      };
+
+    } catch (error) {
+      console.error('Error verificando elegibilidad FIAR:', error);
+      return {
+        eligible: false,
+        status: 'error',
+        reason: 'Error interno verificando elegibilidad',
+      };
+    }
+  }
 }
