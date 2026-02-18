@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   PaymentFrequency,
   PaymentSource,
@@ -17,27 +17,26 @@ import {
   Subscription,
 } from '../user/entities/subscription.entity';
 import { UserService } from '../user/user.service';
-import { v4 as uuidv4 } from 'uuid';
 import { encrypt } from '@/utils/encrypt';
 import {
-  MPExternalReference,
   MPPreferenceResponse,
   MPWebhookPayload,
   MP_STATUS_MESSAGES,
-  RenewedSubscriptionSummary,
 } from './mercadopago.types';
-import { MercadoPagoConfig, Payment, Preference } from 'mercadopago';
+import { MercadoPagoConfig, Payment, PreApproval } from 'mercadopago';
 
 @Injectable()
 export class MercadoPagoService {
   private readonly logger = new Logger(MercadoPagoService.name);
   private mpClient: MercadoPagoConfig;
   private paymentApi: Payment;
-  private preferenceApi: Preference;
+  private preApprovalApi: PreApproval;
 
   constructor(
     @InjectRepository(PaymentSource)
     private paymentSourceRepository: Repository<PaymentSource>,
+    @InjectRepository(Subscription)
+    private subscriptionRepository: Repository<Subscription>,
     @Inject(forwardRef(() => UserService))
     private userService: UserService,
   ) {
@@ -45,14 +44,15 @@ export class MercadoPagoService {
       accessToken: process.env.MP_ACCESS_TOKEN,
     });
     this.paymentApi = new Payment(this.mpClient);
-    this.preferenceApi = new Preference(this.mpClient);
+    this.preApprovalApi = new PreApproval(this.mpClient);
   }
 
   /**
-   * Crea una Preferencia de Checkout Pro en Mercado Pago.
-   * Retorna la URL de la pasarela para que el frontend redirija al usuario.
+   * Crea una Suscripción Recurrente en Mercado Pago (PreApproval).
+   * MP se encarga de cobrar automáticamente según la periodicidad.
+   * Retorna el init_point para redirigir al usuario al checkout de MP.
    */
-  async createPreference(data: {
+  async createSubscription(data: {
     userId: string;
     email: string;
     planType: PlanType;
@@ -68,106 +68,200 @@ export class MercadoPagoService {
     }
 
     try {
-      // Calcular precio según plan y frecuencia
-      let planPrice = PLAN_DETAILS[data.planType].price;
-      const planName = `Suscripción ${data.planType}`;
-      let description = `${planName} - Mensual`;
+      const planPrice = PLAN_DETAILS[data.planType].price;
+      const isAnnual = data.frequency === 'ANNUALLY';
 
-      if (data.frequency === 'ANNUALLY') {
-        planPrice = Math.round(planPrice * 12 * 0.8);
-        description = `${planName} - Anual (20% descuento)`;
+      let frequencyValue: number;
+      let frequencyType: string;
+      let transactionAmount: number;
+      let description: string;
+
+      if (isAnnual) {
+        // Cobro cada 12 meses con 20% descuento
+        frequencyValue = 12;
+        frequencyType = 'months';
+        transactionAmount = Math.round(planPrice * 12 * 0.8);
+        description = `Suscripción FIAR - Plan ${data.planType} Anual`;
+      } else {
+        // Cobro mensual
+        frequencyValue = 1;
+        frequencyType = 'months';
+        transactionAmount = planPrice;
+        description = `Suscripción FIAR - Plan ${data.planType} Mensual`;
       }
 
       // external_reference codifica userId|planType|frequency
-      const externalReference = `${data.userId}|${data.planType}|${data.frequency}|${uuidv4().substring(0, 8)}`;
+      const externalReference = `${data.userId}|${data.planType}|${data.frequency}`;
 
-      // Determinar las URLs de retorno
       const frontendUrl =
         process.env.APP_DOMAIN?.replace(/\/$/, '') || 'http://localhost:3001';
 
-      const backendUrl =
-        process.env.NODE_ENV === 'DEV'
-          ? 'http://localhost:8080/api/v1'
-          : `${frontendUrl.replace(/:\d+$/, '')}:8080/api/v1`;
-
-      // Construir body de la preferencia
-      const preferenceBody: any = {
-        items: [
-          {
-            id: `plan-${data.planType}-${data.frequency}`,
-            title: description,
-            quantity: 1,
-            unit_price: planPrice,
-            currency_id: 'COP',
-          },
-        ],
-        payer: {
-          email: data.email,
-        },
+      const preApprovalBody: any = {
+        reason: description,
         external_reference: externalReference,
-        statement_descriptor: 'FIAR',
+        payer_email: data.email,
+        auto_recurring: {
+          frequency: frequencyValue,
+          frequency_type: frequencyType,
+          transaction_amount: transactionAmount,
+          currency_id: 'COP',
+        },
       };
 
-      // back_urls y auto_return solo funcionan con URLs públicas (no localhost)
-      const isLocalhost = frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1');
-      if (!isLocalhost) {
-        preferenceBody.back_urls = {
-          success: `${frontendUrl}/payment/success`,
-          failure: `${frontendUrl}/payment/failure`,
-          pending: `${frontendUrl}/payment/pending`,
-        };
-        preferenceBody.auto_return = 'approved';
-        preferenceBody.notification_url = `${backendUrl}/mercadopago/webhook`;
-      }
+      // back_url es obligatorio en PreApproval y debe ser URL pública (no localhost)
+      const isLocalhost =
+        frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1');
+      const backUrl = isLocalhost
+        ? 'https://fiar-front.vercel.app/payment/success'
+        : `${frontendUrl}/payment/success`;
+      preApprovalBody.back_url = backUrl;
 
-      const preference = await this.preferenceApi.create({
-        body: preferenceBody,
+      const subscription = await this.preApprovalApi.create({
+        body: preApprovalBody,
       });
 
       this.logger.log(
-        `Preferencia creada: id=${preference.id}, external_reference=${externalReference}`,
+        `Suscripción recurrente creada: id=${subscription.id}, ` +
+          `status=${subscription.status}, external_reference=${externalReference}`,
+      );
+
+      // Guardar el mpSubscriptionId en la entidad Subscription del usuario
+      await this.saveMpSubscriptionId(
+        data.userId,
+        subscription.id,
+        subscription.status,
       );
 
       return {
-        id: preference.id,
-        init_point: preference.init_point,
-        sandbox_init_point: preference.sandbox_init_point,
+        id: subscription.id,
+        init_point: subscription.init_point,
+        sandbox_init_point: subscription.init_point,
       };
     } catch (error) {
       this.logger.error(
-        'Error creating preference:',
+        'Error creating MP subscription:',
         JSON.stringify(error.cause || error.message, null, 2),
       );
 
       throw new BadRequestException({
-        message: 'Error al crear la preferencia de pago',
+        message: 'Error al crear la suscripción recurrente',
         details: error.message || 'Error desconocido',
-        code: 'MP_PREFERENCE_ERROR',
+        code: 'MP_SUBSCRIPTION_ERROR',
       });
     }
   }
 
   /**
-   * Parsea el external_reference para extraer los datos de la suscripción.
+   * Guarda el ID de suscripción MP en la entidad Subscription del usuario.
    */
-  private parseExternalReference(ref: string): MPExternalReference | null {
-    try {
-      const parts = ref.split('|');
-      if (parts.length < 3) return null;
+  private async saveMpSubscriptionId(
+    userId: string,
+    mpSubscriptionId: string,
+    mpStatus: string,
+  ): Promise<void> {
+    let subscription = await this.subscriptionRepository.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!subscription) {
+      const user = await this.userService.findOne(userId);
+      subscription = new Subscription();
+      subscription.user = user;
+      subscription.planType = PlanType.FREE;
+      subscription.startDate = new Date();
+    }
+
+    subscription.mpSubscriptionId = mpSubscriptionId;
+    subscription.mpSubscriptionStatus = mpStatus || 'pending';
+    await this.subscriptionRepository.save(subscription);
+  }
+
+  /**
+   * Consulta el estado de la suscripción recurrente en Mercado Pago.
+   */
+  async getSubscriptionInfo(userId: string): Promise<{
+    status: string;
+    mpSubscriptionId: string | null;
+    planType: string;
+    nextPaymentDate: string | null;
+    reason: string | null;
+  }> {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!subscription || !subscription.mpSubscriptionId) {
       return {
-        userId: parts[0],
-        planType: parts[1] as PlanType,
-        frequency: parts[2] as PaymentFrequency,
+        status: 'none',
+        mpSubscriptionId: null,
+        planType: subscription?.planType || PlanType.FREE,
+        nextPaymentDate: null,
+        reason: null,
       };
-    } catch {
-      return null;
+    }
+
+    try {
+      const mpSub = await this.preApprovalApi.get({
+        id: subscription.mpSubscriptionId,
+      });
+
+      // Actualizar estado local
+      subscription.mpSubscriptionStatus = mpSub.status;
+      await this.subscriptionRepository.save(subscription);
+
+      return {
+        status: mpSub.status,
+        mpSubscriptionId: mpSub.id,
+        planType: subscription.planType,
+        nextPaymentDate: mpSub.next_payment_date || null,
+        reason: mpSub.reason || null,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error consultando suscripción MP ${subscription.mpSubscriptionId}:`,
+        error.message,
+      );
+      return {
+        status: subscription.mpSubscriptionStatus || 'unknown',
+        mpSubscriptionId: subscription.mpSubscriptionId,
+        planType: subscription.planType,
+        nextPaymentDate: null,
+        reason: null,
+      };
     }
   }
 
   /**
-   * Cancela una suscripción activa.
+   * Cancela una suscripción recurrente en Mercado Pago y en el sistema local.
    */
   async cancelSubscription(userId: string): Promise<Subscription> {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { user: { id: userId } },
+    });
+
+    // Cancelar en Mercado Pago si tiene suscripción activa
+    if (subscription?.mpSubscriptionId) {
+      try {
+        await this.preApprovalApi.update({
+          id: subscription.mpSubscriptionId,
+          body: { status: 'cancelled' },
+        });
+        this.logger.log(
+          `Suscripción MP ${subscription.mpSubscriptionId} cancelada para usuario ${userId}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Error cancelando suscripción MP ${subscription.mpSubscriptionId}:`,
+          error.message,
+        );
+      }
+
+      subscription.mpSubscriptionStatus = 'cancelled';
+      subscription.mpSubscriptionId = null;
+      await this.subscriptionRepository.save(subscription);
+    }
+
+    // Desactivar payment sources locales
     const paymentSources = await this.paymentSourceRepository.find({
       where: { user: { id: userId }, active: true },
     });
@@ -175,128 +269,200 @@ export class MercadoPagoService {
       ps.active = false;
       await this.paymentSourceRepository.save(ps);
     }
+
     return await this.userService.cancelUserSubscription(userId);
   }
 
   /**
-   * Renueva suscripciones vencidas.
-   * Con Checkout Pro no hay cobro automático con tarjeta guardada,
-   * por lo que se marca para revisión y se puede enviar un recordatorio.
+   * Pausa una suscripción recurrente en Mercado Pago.
    */
-  async renewSubscriptions(): Promise<RenewedSubscriptionSummary[]> {
-    const now = new Date();
-    const renewedSubscriptions: RenewedSubscriptionSummary[] = [];
-    const expiredSources = await this.paymentSourceRepository.find({
-      where: { nextCharge: LessThan(now), active: true },
-      relations: ['user'],
+  async pauseSubscription(
+    userId: string,
+  ): Promise<{ success: boolean; status: string }> {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { user: { id: userId } },
     });
 
-    for (const source of expiredSources) {
-      try {
-        this.logger.warn(
-          `Renovación pendiente para PaymentSource ${source.id} (usuario: ${source.user.email}). ` +
-            `Con Checkout Pro se requiere que el usuario vuelva a pagar manualmente.`,
-        );
-
-        // Actualizar nextCharge para evitar re-intentos inmediatos
-        const nextRetry = new Date();
-        nextRetry.setDate(nextRetry.getDate() + 1);
-        source.nextCharge = nextRetry;
-        await this.paymentSourceRepository.save(source);
-
-        renewedSubscriptions.push({
-          id: source.id,
-          userEmail: source.user.email,
-          planType: source.planType,
-          renewedAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        this.logger.error(
-          `Error renewing PaymentSource ${source.id}:`,
-          error.message,
-        );
-      }
+    if (!subscription?.mpSubscriptionId) {
+      throw new BadRequestException('No tienes una suscripción activa');
     }
 
-    this.logger.log('Resumen de suscripciones renovadas:', renewedSubscriptions);
-    return renewedSubscriptions;
+    try {
+      await this.preApprovalApi.update({
+        id: subscription.mpSubscriptionId,
+        body: { status: 'paused' },
+      });
+
+      subscription.mpSubscriptionStatus = 'paused';
+      await this.subscriptionRepository.save(subscription);
+
+      this.logger.log(
+        `Suscripción MP ${subscription.mpSubscriptionId} pausada para usuario ${userId}`,
+      );
+
+      return { success: true, status: 'paused' };
+    } catch (error) {
+      this.logger.error('Error pausando suscripción MP:', error.message);
+      throw new BadRequestException('Error al pausar la suscripción');
+    }
   }
 
   /**
    * Maneja eventos de webhook de Mercado Pago.
-   * Cuando el pago es aprobado, confirma la suscripción del usuario.
+   * Soporta tanto pagos (payment) como suscripciones (subscription_preapproval).
    */
   async handleWebhookEvent(
     payload: MPWebhookPayload,
-  ): Promise<{ processed: boolean; paymentId?: string; status?: string }> {
+  ): Promise<{ processed: boolean; type?: string; status?: string }> {
     this.logger.log(
       `Webhook recibido: type=${payload.type}, action=${payload.action}, data.id=${payload.data?.id}`,
     );
 
+    // Webhook de suscripción (preapproval)
+    if (payload.type === 'subscription_preapproval') {
+      return this.handleSubscriptionWebhook(payload);
+    }
+
+    // Webhook de pago (asociado a suscripción recurrente)
     if (payload.type === 'payment') {
-      try {
-        // Consultar el estado del pago en MP
-        const paymentInfo = await this.paymentApi.get({
-          id: payload.data.id,
-        });
-
-        this.logger.log(
-          `Pago ${payload.data.id}: status=${paymentInfo.status}, ` +
-            `status_detail=${paymentInfo.status_detail}, ` +
-            `external_reference=${paymentInfo.external_reference}`,
-        );
-
-        if (paymentInfo.status === 'approved' && paymentInfo.external_reference) {
-          const refData = this.parseExternalReference(
-            paymentInfo.external_reference,
-          );
-
-          if (refData) {
-            await this.confirmPaymentSubscription(
-              refData,
-              String(paymentInfo.id),
-            );
-          } else {
-            this.logger.warn(
-              `No se pudo parsear external_reference: ${paymentInfo.external_reference}`,
-            );
-          }
-        }
-
-        return {
-          processed: true,
-          paymentId: payload.data.id,
-          status: paymentInfo.status as string,
-        };
-      } catch (error) {
-        this.logger.error(
-          `Error consultando pago ${payload.data.id}:`,
-          error.message,
-        );
-        return { processed: false };
-      }
+      return this.handlePaymentWebhook(payload);
     }
 
     return { processed: false };
   }
 
   /**
-   * Confirma la suscripción de un usuario después de un pago aprobado.
-   * Crea/actualiza el PaymentSource y confirma la suscripción en el usuario.
+   * Maneja webhook de suscripción (subscription_preapproval).
+   * Se dispara cuando la suscripción cambia de estado.
+   */
+  private async handleSubscriptionWebhook(
+    payload: MPWebhookPayload,
+  ): Promise<{ processed: boolean; type?: string; status?: string }> {
+    try {
+      const mpSub = await this.preApprovalApi.get({
+        id: payload.data.id,
+      });
+
+      this.logger.log(
+        `Suscripción MP ${payload.data.id}: status=${mpSub.status}, ` +
+          `external_reference=${mpSub.external_reference}`,
+      );
+
+      if (mpSub.external_reference) {
+        const refData = this.parseExternalReference(mpSub.external_reference);
+        if (refData) {
+          const subscription = await this.subscriptionRepository.findOne({
+            where: { user: { id: refData.userId } },
+          });
+
+          if (subscription) {
+            subscription.mpSubscriptionStatus = mpSub.status;
+
+            // Si la suscripción fue autorizada → activar el plan
+            if (mpSub.status === 'authorized') {
+              subscription.planType = refData.planType;
+              subscription.startDate = new Date();
+              subscription.endDate = null;
+              this.logger.log(
+                `Plan ${refData.planType} activado para usuario ${refData.userId} vía suscripción recurrente`,
+              );
+            }
+
+            // Si fue cancelada → bajar a FREE
+            if (mpSub.status === 'cancelled') {
+              subscription.planType = PlanType.FREE;
+              subscription.endDate = new Date();
+              subscription.mpSubscriptionId = null;
+              this.logger.log(
+                `Suscripción cancelada para usuario ${refData.userId}`,
+              );
+            }
+
+            await this.subscriptionRepository.save(subscription);
+          }
+        }
+      }
+
+      return {
+        processed: true,
+        type: 'subscription_preapproval',
+        status: mpSub.status,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error procesando webhook de suscripción ${payload.data.id}:`,
+        error.message,
+      );
+      return { processed: false };
+    }
+  }
+
+  /**
+   * Maneja webhook de pago (payment).
+   * Los cobros recurrentes generan webhooks de pago automáticamente.
+   */
+  private async handlePaymentWebhook(
+    payload: MPWebhookPayload,
+  ): Promise<{ processed: boolean; type?: string; status?: string }> {
+    try {
+      const paymentInfo = await this.paymentApi.get({
+        id: payload.data.id,
+      });
+
+      this.logger.log(
+        `Pago ${payload.data.id}: status=${paymentInfo.status}, ` +
+          `status_detail=${paymentInfo.status_detail}, ` +
+          `external_reference=${paymentInfo.external_reference}`,
+      );
+
+      if (paymentInfo.status === 'approved' && paymentInfo.external_reference) {
+        const refData = this.parseExternalReference(
+          paymentInfo.external_reference,
+        );
+
+        if (refData) {
+          await this.confirmPaymentSubscription(
+            refData,
+            String(paymentInfo.id),
+          );
+        }
+      }
+
+      return {
+        processed: true,
+        type: 'payment',
+        status: paymentInfo.status as string,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error procesando webhook de pago ${payload.data.id}:`,
+        error.message,
+      );
+      return { processed: false };
+    }
+  }
+
+  /**
+   * Confirma/renueva la suscripción tras un pago aprobado.
+   * Se llama tanto en el primer pago como en cada renovación automática.
    */
   private async confirmPaymentSubscription(
-    refData: MPExternalReference,
+    refData: {
+      userId: string;
+      planType: PlanType;
+      frequency: PaymentFrequency;
+    },
     paymentId: string,
   ): Promise<void> {
     const user = await this.userService.findOne(refData.userId);
     if (!user) {
       this.logger.error(
-        `Usuario ${refData.userId} no encontrado al confirmar suscripción`,
+        `Usuario ${refData.userId} no encontrado al confirmar pago recurrente`,
       );
       return;
     }
 
-    // Verificar si ya existe una fuente activa para este pago (idempotencia)
+    // Verificar idempotencia
     const encryptedPaymentId = encrypt(paymentId, process.env.ENCRYPTION_KEY);
     const existingSource = await this.paymentSourceRepository.findOne({
       where: { sourceId: encryptedPaymentId },
@@ -315,12 +481,12 @@ export class MercadoPagoService {
     paymentSource.sourceId = encryptedPaymentId;
     paymentSource.user = user;
     paymentSource.planType = refData.planType;
-    paymentSource.frequency = refData.frequency as PaymentFrequency;
+    paymentSource.frequency = refData.frequency;
     paymentSource.nextCharge = nextCharge;
     paymentSource.active = true;
     await this.paymentSourceRepository.save(paymentSource);
 
-    // Confirmar suscripción en el usuario
+    // Confirmar suscripción
     await this.userService.confirmSubscription(
       refData.planType,
       refData.userId,
@@ -328,13 +494,34 @@ export class MercadoPagoService {
     );
 
     this.logger.log(
-      `Suscripción confirmada vía webhook para usuario ${refData.userId}: ` +
+      `Pago recurrente confirmado para usuario ${refData.userId}: ` +
         `${refData.planType} (${refData.frequency}), paymentId=${paymentId}`,
     );
   }
 
   /**
-   * Verifica el estado de un pago por su ID (para la página de retorno).
+   * Parsea el external_reference para extraer los datos de la suscripción.
+   */
+  private parseExternalReference(ref: string): {
+    userId: string;
+    planType: PlanType;
+    frequency: PaymentFrequency;
+  } | null {
+    try {
+      const parts = ref.split('|');
+      if (parts.length < 3) return null;
+      return {
+        userId: parts[0],
+        planType: parts[1] as PlanType,
+        frequency: parts[2] as PaymentFrequency,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Verifica el estado de un pago por su ID.
    */
   async getPaymentStatus(paymentId: string): Promise<{
     status: string;
@@ -346,7 +533,11 @@ export class MercadoPagoService {
     try {
       const paymentInfo = await this.paymentApi.get({ id: paymentId });
 
-      let refData: MPExternalReference | null = null;
+      let refData: {
+        userId: string;
+        planType: PlanType;
+        frequency: PaymentFrequency;
+      } | null = null;
       if (paymentInfo.external_reference) {
         refData = this.parseExternalReference(paymentInfo.external_reference);
       }

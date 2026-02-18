@@ -74,4 +74,12 @@ export class Subscription {
   @OneToOne(() => PaymentSource, { nullable: true })
   @JoinColumn()
   lastPaymentSource: PaymentSource;
+
+  /** ID de la suscripción recurrente en Mercado Pago (preapproval_id) */
+  @Column({ nullable: true })
+  mpSubscriptionId: string;
+
+  /** Estado de la suscripción en MP: authorized, pending, paused, cancelled */
+  @Column({ nullable: true })
+  mpSubscriptionStatus: string;
 }

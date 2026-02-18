@@ -5,7 +5,6 @@ import {
   Req,
   UseGuards,
   BadRequestException,
-  Query,
   Res,
   HttpStatus,
   Get,
@@ -26,7 +25,8 @@ export class MercadoPagoController {
 
   /**
    * POST /mercadopago/subscribe
-   * Crea una preferencia de Checkout Pro y retorna la URL de pago.
+   * Crea una suscripción recurrente en Mercado Pago y retorna la URL de checkout.
+   * MP se encarga de cobrar automáticamente según la periodicidad elegida.
    */
   @Post('subscribe')
   @UseGuards(FirebaseAuthGuard)
@@ -35,7 +35,7 @@ export class MercadoPagoController {
     @Body() paymentData: MercadoPagoPaymentDto,
   ) {
     try {
-      const preference = await this.mercadoPagoService.createPreference({
+      const result = await this.mercadoPagoService.createSubscription({
         userId: req.user.id,
         email: req.user.email,
         planType: paymentData.planType,
@@ -44,12 +44,13 @@ export class MercadoPagoController {
 
       return {
         success: true,
-        ...preference,
-        message: 'Preferencia creada. Redirige al usuario a init_point.',
+        ...result,
+        message:
+          'Suscripción recurrente creada. Redirige al usuario a init_point.',
       };
     } catch (error) {
       this.logger.error(
-        'Error creando preferencia:',
+        'Error creando suscripción:',
         JSON.stringify(error.response || error.message, null, 2),
       );
 
@@ -58,15 +59,25 @@ export class MercadoPagoController {
       }
 
       throw new BadRequestException({
-        message: 'Error creando la preferencia de pago',
+        message: 'Error creando la suscripción recurrente',
         details: error.message || 'Error desconocido',
       });
     }
   }
 
   /**
+   * GET /mercadopago/subscription-info
+   * Consulta el estado de la suscripción recurrente del usuario autenticado.
+   */
+  @Get('subscription-info')
+  @UseGuards(FirebaseAuthGuard)
+  async getSubscriptionInfo(@Req() req: RequestWithUser) {
+    return this.mercadoPagoService.getSubscriptionInfo(req.user.id);
+  }
+
+  /**
    * GET /mercadopago/payment-status/:paymentId
-   * Consulta el estado de un pago (para la página de retorno).
+   * Consulta el estado de un pago individual.
    */
   @Get('payment-status/:paymentId')
   async getPaymentStatus(@Param('paymentId') paymentId: string) {
@@ -75,7 +86,7 @@ export class MercadoPagoController {
 
   /**
    * POST /mercadopago/cancel-subscription
-   * Cancela la suscripción activa del usuario autenticado.
+   * Cancela la suscripción recurrente en MP y baja al plan FREE.
    */
   @Post('cancel-subscription')
   @UseGuards(FirebaseAuthGuard)
@@ -94,28 +105,18 @@ export class MercadoPagoController {
   }
 
   /**
-   * POST /mercadopago/renew-subscriptions
-   * Renueva las suscripciones vencidas. Protegido por accessKey.
+   * POST /mercadopago/pause-subscription
+   * Pausa la suscripción recurrente (se puede reactivar después).
    */
-  @Post('renew-subscriptions')
-  async renewSubscriptions(@Query('accessKey') accessKey: string) {
-    if (accessKey !== process.env.RENEWAL_ACCESS_KEY) {
-      throw new BadRequestException('Clave de acceso inválida');
-    }
-    try {
-      return await this.mercadoPagoService.renewSubscriptions();
-    } catch (error) {
-      this.logger.error('Error en renovación de suscripciones:', error);
-      throw new BadRequestException({
-        message: 'Error en renovación de suscripciones',
-        details: error.message,
-      });
-    }
+  @Post('pause-subscription')
+  @UseGuards(FirebaseAuthGuard)
+  pauseSubscription(@Req() req: RequestWithUser) {
+    return this.mercadoPagoService.pauseSubscription(req.user.id);
   }
 
   /**
    * POST /mercadopago/webhook
-   * Recibe notificaciones de Mercado Pago (IPN/Webhooks).
+   * Recibe notificaciones de Mercado Pago (pagos y suscripciones).
    */
   @Post('webhook')
   async handleWebhook(@Req() req: Request, @Res() res: Response) {
@@ -123,8 +124,7 @@ export class MercadoPagoController {
       const payload = req.body;
       this.logger.log('Webhook MP recibido:', JSON.stringify(payload));
 
-      const result =
-        await this.mercadoPagoService.handleWebhookEvent(payload);
+      const result = await this.mercadoPagoService.handleWebhookEvent(payload);
 
       return res.status(200).json({
         success: true,
