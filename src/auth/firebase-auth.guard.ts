@@ -40,9 +40,10 @@ export class FirebaseAuthGuard implements CanActivate {
         newUser.role = UserRole.SUPER_ADMIN;
         const responseUser = await this.userRepository.save(newUser);
         request['user'] = responseUser;
+      } else {
+        request['user'] = user;
       }
 
-      request['user'] = user;
       request['token'] = decodedToken;
       return true;
     } catch (error) {

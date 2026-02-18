@@ -44,7 +44,7 @@ export class AuthController {
       id: userId,
       email: userData.email,
       name: userData.name,
-      role: userData.role || UserRole.CUSTOMER,
+      role: userData.role || UserRole.BUSINESS_OWNER,
     });
 
     return this.userRepository.save(newUser);
