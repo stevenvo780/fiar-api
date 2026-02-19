@@ -99,6 +99,7 @@ export class MercadoPagoService {
       const preApprovalBody: any = {
         reason: description,
         external_reference: externalReference,
+        payer_email: data.email,
         auto_recurring: {
           frequency: frequencyValue,
           frequency_type: frequencyType,
@@ -137,14 +138,29 @@ export class MercadoPagoService {
         sandbox_init_point: subscription.init_point,
       };
     } catch (error) {
+      const errorMsg =
+        error.message || error.cause?.toString() || 'Error desconocido';
       this.logger.error(
         'Error creating MP subscription:',
-        JSON.stringify(error.cause || error.message, null, 2),
+        JSON.stringify(errorMsg, null, 2),
       );
+
+      // Manejo de error específico: el pagador y el cobrador son la misma persona
+      if (
+        errorMsg.includes('Payer and collector cannot be the same') ||
+        errorMsg.includes('payer_email')
+      ) {
+        throw new BadRequestException({
+          message:
+            'No puedes suscribirte con la misma cuenta que administra los pagos. Usa una cuenta diferente.',
+          details: errorMsg,
+          code: 'MP_SAME_USER_ERROR',
+        });
+      }
 
       throw new BadRequestException({
         message: 'Error al crear la suscripción recurrente',
-        details: error.message || 'Error desconocido',
+        details: errorMsg,
         code: 'MP_SUBSCRIPTION_ERROR',
       });
     }
