@@ -96,10 +96,23 @@ export class MercadoPagoService {
       const frontendUrl =
         process.env.APP_DOMAIN?.replace(/\/$/, '') || 'http://localhost:3001';
 
+      // En sandbox (MP_SANDBOX_MODE=true) el payer_email DEBE ser de un test user
+      // para que coincida con el collector (también test user).
+      const isSandbox = process.env.MP_SANDBOX_MODE === 'true';
+      const payerEmail = isSandbox
+        ? process.env.MP_TEST_PAYER_EMAIL || data.email
+        : data.email;
+
+      if (isSandbox && process.env.MP_TEST_PAYER_EMAIL) {
+        this.logger.log(
+          `[SANDBOX] Usando payer_email de test: ${payerEmail} (original: ${data.email})`,
+        );
+      }
+
       const preApprovalBody: any = {
         reason: description,
         external_reference: externalReference,
-        payer_email: data.email,
+        payer_email: payerEmail,
         auto_recurring: {
           frequency: frequencyValue,
           frequency_type: frequencyType,
