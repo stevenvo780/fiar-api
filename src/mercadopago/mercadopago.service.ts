@@ -99,7 +99,6 @@ export class MercadoPagoService {
       const preApprovalBody: any = {
         reason: description,
         external_reference: externalReference,
-        payer_email: data.email,
         auto_recurring: {
           frequency: frequencyValue,
           frequency_type: frequencyType,
