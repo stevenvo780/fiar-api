@@ -16,7 +16,6 @@ import { AuthModule } from './auth/auth.module';
 import { ProfileModule } from './profile/profile.module';
 import { ClientModule } from './client/client.module';
 import { UserModule } from './user/user.module';
-import { WompiModule } from './wompi/wompi.module';
 import { MercadoPagoModule } from './mercadopago/mercadopago.module';
 
 @Module({
@@ -28,7 +27,6 @@ import { MercadoPagoModule } from './mercadopago/mercadopago.module';
     ClientModule,
     TransactionModule,
     UserModule,
-    WompiModule,
     MercadoPagoModule,
   ],
   controllers: [AppController],

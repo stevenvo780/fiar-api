@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { SharedProp } from '../../common/entities/sharedProp.helper';
 import { Profile } from '../../profile/entities/profile.entity';
 import { Subscription } from './subscription.entity';
-import { PaymentSource } from '../../wompi/entities/payment-source.entity';
+import { PaymentSource } from '../../common/entities/payment-source.entity';
 import { Client } from '../../client/entities/client.entity';
 
 export enum UserRole {

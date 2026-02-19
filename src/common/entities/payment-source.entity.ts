@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { SharedProp } from 'src/common/entities/sharedProp.helper';
+import { SharedProp } from './sharedProp.helper';
 import { PlanType } from '../../user/entities/subscription.entity';
 
 export enum PaymentFrequency {

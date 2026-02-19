@@ -1,6 +1,6 @@
 import { IsEnum } from 'class-validator';
 import { PlanType } from '../../user/entities/subscription.entity';
-import { PaymentFrequency } from '../../wompi/entities/payment-source.entity';
+import { PaymentFrequency } from '../../common/entities/payment-source.entity';
 
 /**
  * DTO para crear una suscripción recurrente (PreApproval) en Mercado Pago.

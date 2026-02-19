@@ -8,7 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-import { PaymentSource } from '../../wompi/entities/payment-source.entity';
+import { PaymentSource } from '../../common/entities/payment-source.entity';
 
 export enum PlanType {
   FREE = 'FREE',

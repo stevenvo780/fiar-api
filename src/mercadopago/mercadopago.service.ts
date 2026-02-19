@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import {
   PaymentFrequency,
   PaymentSource,
-} from '../wompi/entities/payment-source.entity';
+} from '../common/entities/payment-source.entity';
 import {
   PLAN_DETAILS,
   PlanType,

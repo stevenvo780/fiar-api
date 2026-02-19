@@ -4,7 +4,7 @@ import { Repository, UpdateResult } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
 import { FindUsersDto } from './dto/find-users.dto';
 import { Subscription, PlanType } from './entities/subscription.entity';
-import { PaymentSource } from 'src/wompi/entities/payment-source.entity';
+import { PaymentSource } from '../common/entities/payment-source.entity';
 
 @Injectable()
 export class UserService {
