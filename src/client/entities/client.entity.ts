@@ -4,12 +4,14 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { SharedProp } from '@/common/entities/sharedProp.helper';
 import { User } from '../../user/entities/user.entity';
 
 @Entity()
+@Index('UQ_client_document_owner', ['document', 'user'], { unique: true })
 export class Client extends SharedProp {
   @PrimaryGeneratedColumn()
   @ApiProperty({ description: 'Identificador único del cliente', example: 1 })
@@ -23,7 +25,7 @@ export class Client extends SharedProp {
   })
   user: User;
 
-  @Column({ nullable: false, unique: true })
+  @Column({ nullable: false })
   @ApiProperty({
     description: 'Documento de identificación del cliente',
     example: '1234567890',
@@ -84,11 +86,11 @@ export class Client extends SharedProp {
   })
   direction?: string;
 
-  @Column({ nullable: true, type: 'numeric', unique: true })
+  @Column({ nullable: true, type: 'numeric' })
   @ApiProperty({ description: 'Teléfono de contacto', example: '3137898941' })
   phone?: number;
 
-  @Column({ nullable: true, unique: true })
+  @Column({ nullable: true })
   @ApiProperty({
     description: 'Correo electrónico del cliente',
     example: 'correo@correo.com',

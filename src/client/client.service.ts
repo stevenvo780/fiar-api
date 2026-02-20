@@ -36,7 +36,16 @@ export class ClientService {
       current_balance: data.current_balance ?? data.credit_limit ?? 0,
     });
 
-    return this.clientRepository.save(client);
+    try {
+      return await this.clientRepository.save(client);
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        throw new ConflictException(
+          'Ya existe un cliente con ese documento para este usuario',
+        );
+      }
+      throw error;
+    }
   }
 
   async findAll(
