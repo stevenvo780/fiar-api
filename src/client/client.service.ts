@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions } from 'typeorm';
 import { Client } from './entities/client.entity';
 import { User } from '../user/entities/user.entity';
+import { Subscription, PlanType, PLAN_DETAILS } from '../user/entities/subscription.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { PaginatedResponseDto } from '../dto/paginated-response.dto';
@@ -18,9 +19,28 @@ export class ClientService {
   constructor(
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
+    @InjectRepository(Subscription)
+    private readonly subscriptionRepository: Repository<Subscription>,
   ) {}
 
   async create(data: CreateClientDto, user: User): Promise<Client> {
+    // Verificar límite de clientes según el plan
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { user: { id: user.id } },
+    });
+    const planType = subscription?.planType || PlanType.FREE;
+    const clientsLimit = PLAN_DETAILS[planType].clientsLimit;
+
+    const currentCount = await this.clientRepository.count({
+      where: { user: { id: user.id } },
+    });
+
+    if (currentCount >= clientsLimit) {
+      throw new ForbiddenException(
+        `Has alcanzado el límite de ${clientsLimit} clientes en tu plan ${planType}. Actualiza tu plan para agregar más clientes.`,
+      );
+    }
+
     const exists = await this.clientRepository.findOne({
       where: { document: data.document, user: { id: user.id } },
     });

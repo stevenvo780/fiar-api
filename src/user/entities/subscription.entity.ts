@@ -19,29 +19,33 @@ export enum PlanType {
 
 export const PLAN_DETAILS: Record<
   PlanType,
-  { price: number; monthlyOrderLimit: number; name: string; sku: string }
+  { price: number; monthlyOrderLimit: number; clientsLimit: number; name: string; sku: string }
 > = {
   [PlanType.FREE]: {
     price: 0,
     monthlyOrderLimit: 2000000,
+    clientsLimit: 3,
     name: PlanType.FREE,
     sku: PlanType.FREE,
   },
   [PlanType.BASIC]: {
     price: 30000,
     monthlyOrderLimit: 500,
+    clientsLimit: 100,
     name: PlanType.BASIC,
     sku: PlanType.BASIC,
   },
   [PlanType.PRO]: {
     price: 80000,
     monthlyOrderLimit: 3000,
+    clientsLimit: 500,
     name: PlanType.PRO,
     sku: PlanType.PRO,
   },
   [PlanType.ENTERPRISE]: {
     price: 200000,
     monthlyOrderLimit: 50000,
+    clientsLimit: 999999,
     name: PlanType.ENTERPRISE,
     sku: PlanType.ENTERPRISE,
   },
