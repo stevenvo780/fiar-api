@@ -107,7 +107,6 @@ export class ClientService {
         { ...baseWhere, lastname: searchPattern },
         { ...baseWhere, document: searchPattern },
         { ...baseWhere, email: searchPattern },
-        { ...baseWhere, phone: searchPattern },
       ];
     } else {
       where = baseWhere;
