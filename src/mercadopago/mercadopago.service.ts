@@ -154,7 +154,8 @@ export class MercadoPagoService {
       return {
         id: subscription.id,
         init_point: subscription.init_point,
-        sandbox_init_point: subscription.init_point,
+        sandbox_init_point: (subscription as any).sandbox_init_point || subscription.init_point,
+        isSandbox,
       };
     } catch (error) {
       const errorMsg =

@@ -17,6 +17,7 @@ export interface MPPreferenceResponse {
   id: string;
   init_point: string;
   sandbox_init_point: string;
+  isSandbox?: boolean;
 }
 
 /** Mapa de status_detail a mensajes legibles en español */
