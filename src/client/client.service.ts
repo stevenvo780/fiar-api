@@ -64,6 +64,11 @@ export class ClientService {
           'Ya existe un cliente con ese documento para este usuario',
         );
       }
+      if (error?.message?.includes('numeric field overflow')) {
+        throw new BadRequestException(
+          'Uno de los valores numéricos es demasiado grande. Verifica el límite de crédito y el saldo.',
+        );
+      }
       throw error;
     }
   }

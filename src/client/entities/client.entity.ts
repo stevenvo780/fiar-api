@@ -40,14 +40,14 @@ export class Client extends SharedProp {
   @ApiProperty({ description: 'Nombre del cliente', example: 'Carlos' })
   name?: string;
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'numeric', precision: 18, scale: 2, default: 0 })
   @ApiProperty({
     description: 'Límite de crédito disponible',
     example: 100000.0,
   })
   credit_limit: number;
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'numeric', precision: 18, scale: 2, default: 0 })
   @ApiProperty({
     description: 'Saldo disponible actual del cliente',
     example: 50000.0,
@@ -86,9 +86,9 @@ export class Client extends SharedProp {
   })
   direction?: string;
 
-  @Column({ nullable: true, type: 'numeric' })
+  @Column({ nullable: true, type: 'varchar' })
   @ApiProperty({ description: 'Teléfono de contacto', example: '3137898941' })
-  phone?: number;
+  phone?: string;
 
   @Column({ nullable: true })
   @ApiProperty({
