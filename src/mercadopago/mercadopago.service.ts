@@ -129,6 +129,12 @@ export class MercadoPagoService {
         : `${frontendUrl}/payment/success`;
       preApprovalBody.back_url = backUrl;
 
+      // notification_url para que MP envíe webhooks al backend
+      const apiDomain =
+        process.env.API_DOMAIN?.replace(/\/$/, '') ||
+        'https://fiar-api-212302024675.us-central1.run.app';
+      preApprovalBody.notification_url = `${apiDomain}/api/v1/mercadopago/webhook`;
+
       const subscription = await this.preApprovalApi.create({
         body: preApprovalBody,
       });
