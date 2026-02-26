@@ -267,6 +267,110 @@ export class MercadoPagoService {
   }
 
   /**
+   * Sincroniza el estado de la suscripción consultando directamente a la API de MP.
+   * Esto funciona tanto en sandbox (donde los webhooks no se envían) como en producción
+   * (como fallback si un webhook se pierde).
+   * Si la suscripción está "authorized" y el plan local sigue en FREE → activa el plan.
+   * Si la suscripción está "cancelled" → baja a FREE.
+   */
+  async syncSubscription(userId: string): Promise<{
+    synced: boolean;
+    status: string;
+    planType: string;
+    message: string;
+  }> {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!subscription || !subscription.mpSubscriptionId) {
+      return {
+        synced: false,
+        status: 'none',
+        planType: subscription?.planType || PlanType.FREE,
+        message: 'No hay suscripción de MercadoPago registrada',
+      };
+    }
+
+    try {
+      const mpSub = await this.preApprovalApi.get({
+        id: subscription.mpSubscriptionId,
+      });
+
+      this.logger.log(
+        `[SYNC] Suscripción MP ${mpSub.id}: status=${mpSub.status}, ` +
+          `local_plan=${subscription.planType}, external_ref=${mpSub.external_reference}`,
+      );
+
+      subscription.mpSubscriptionStatus = mpSub.status;
+
+      // Si la suscripción está autorizada y el plan local NO está activo → activar
+      if (mpSub.status === 'authorized' && subscription.planType === PlanType.FREE) {
+        const refData = mpSub.external_reference
+          ? this.parseExternalReference(mpSub.external_reference)
+          : null;
+
+        const targetPlan = refData?.planType || PlanType.BASIC;
+        subscription.planType = targetPlan;
+        subscription.startDate = new Date();
+        subscription.endDate = null;
+        await this.subscriptionRepository.save(subscription);
+
+        this.logger.log(
+          `[SYNC] Plan ${targetPlan} activado para usuario ${userId} vía sync directo`,
+        );
+
+        return {
+          synced: true,
+          status: mpSub.status,
+          planType: targetPlan,
+          message: `Plan ${targetPlan} activado correctamente`,
+        };
+      }
+
+      // Si la suscripción fue cancelada → bajar a FREE
+      if (mpSub.status === 'cancelled' && subscription.planType !== PlanType.FREE) {
+        subscription.planType = PlanType.FREE;
+        subscription.endDate = new Date();
+        subscription.mpSubscriptionId = null;
+        await this.subscriptionRepository.save(subscription);
+
+        this.logger.log(
+          `[SYNC] Suscripción cancelada para usuario ${userId} vía sync directo`,
+        );
+
+        return {
+          synced: true,
+          status: mpSub.status,
+          planType: PlanType.FREE,
+          message: 'Suscripción cancelada, plan vuelve a FREE',
+        };
+      }
+
+      // Ya está sincronizado (plan activo y suscripción authorized, o ambos FREE)
+      await this.subscriptionRepository.save(subscription);
+
+      return {
+        synced: true,
+        status: mpSub.status,
+        planType: subscription.planType,
+        message: `Suscripción sincronizada — estado: ${mpSub.status}`,
+      };
+    } catch (error) {
+      this.logger.error(
+        `[SYNC] Error sincronizando suscripción MP ${subscription.mpSubscriptionId}:`,
+        error.message,
+      );
+      return {
+        synced: false,
+        status: subscription.mpSubscriptionStatus || 'error',
+        planType: subscription.planType,
+        message: `Error al consultar MercadoPago: ${error.message}`,
+      };
+    }
+  }
+
+  /**
    * Cancela una suscripción recurrente en Mercado Pago y en el sistema local.
    */
   async cancelSubscription(userId: string): Promise<Subscription> {

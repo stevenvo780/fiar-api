@@ -115,6 +115,19 @@ export class MercadoPagoController {
   }
 
   /**
+   * POST /mercadopago/sync-subscription
+   * Consulta directamente a la API de MercadoPago el estado de la suscripción
+   * y activa/desactiva el plan según corresponda.
+   * Esto permite que el flujo funcione end-to-end sin depender del webhook
+   * (útil en sandbox donde MP no envía webhooks, y como fallback en producción).
+   */
+  @Post('sync-subscription')
+  @UseGuards(FirebaseAuthGuard)
+  syncSubscription(@Req() req: RequestWithUser) {
+    return this.mercadoPagoService.syncSubscription(req.user.id);
+  }
+
+  /**
    * POST /mercadopago/webhook
    * Recibe notificaciones de Mercado Pago (pagos y suscripciones).
    */
