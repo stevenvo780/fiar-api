@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindManyOptions } from 'typeorm';
+import { Repository, FindManyOptions, ILike } from 'typeorm';
 import { Client } from './entities/client.entity';
 import { User } from '../user/entities/user.entity';
 import { Subscription, PlanType, PLAN_DETAILS } from '../user/entities/subscription.entity';
@@ -76,25 +76,41 @@ export class ClientService {
       blocked?: boolean;
       city?: string;
       document?: string;
+      search?: string;
     },
   ): Promise<PaginatedResponseDto<Client>> {
-    const { page, limit, blocked, city, document } = options;
+    const { page, limit, blocked, city, document, search } = options;
     const skip = (page - 1) * limit;
 
-    const where: FindManyOptions<Client>['where'] = {
+    const baseWhere: any = {
       user: { id: userId },
     };
 
     if (blocked !== undefined) {
-      where.blocked = blocked;
+      baseWhere.blocked = blocked;
     }
 
     if (city) {
-      where.city = city;
+      baseWhere.city = city;
     }
 
     if (document) {
-      where.document = document;
+      baseWhere.document = document;
+    }
+
+    // Si hay búsqueda, buscar en múltiples campos con OR
+    let where: FindManyOptions<Client>['where'];
+    if (search && search.trim()) {
+      const searchPattern = ILike(`%${search.trim()}%`);
+      where = [
+        { ...baseWhere, name: searchPattern },
+        { ...baseWhere, lastname: searchPattern },
+        { ...baseWhere, document: searchPattern },
+        { ...baseWhere, email: searchPattern },
+        { ...baseWhere, phone: searchPattern },
+      ];
+    } else {
+      where = baseWhere;
     }
 
     const [data, total] = await this.clientRepository.findAndCount({

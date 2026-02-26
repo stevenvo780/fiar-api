@@ -77,6 +77,12 @@ export class ClientController {
     type: String,
     description: 'Filtrar por documento',
   })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Buscar por nombre, apellido, documento, email o teléfono',
+  })
   @UseGuards(FirebaseAuthGuard)
   @Get()
   findAll(
@@ -86,6 +92,7 @@ export class ClientController {
     @Query('blocked') blocked?: boolean,
     @Query('city') city?: string,
     @Query('document') document?: string,
+    @Query('search') search?: string,
   ): Promise<PaginatedResponseDto<Client>> {
     limit = limit > 100 ? 100 : limit;
     return this.clientService.findAll(req.user.id, {
@@ -94,6 +101,7 @@ export class ClientController {
       blocked,
       city,
       document,
+      search,
     });
   }
 
