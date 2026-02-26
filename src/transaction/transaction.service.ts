@@ -179,9 +179,15 @@ export class TransactionService {
     }
 
     if (filters?.status) {
-      query.andWhere('transaction.status = :status', {
-        status: filters.status,
-      });
+      if (filters.status === 'not_approved') {
+        query.andWhere('transaction.status != :status', {
+          status: 'approved',
+        });
+      } else {
+        query.andWhere('transaction.status = :status', {
+          status: filters.status,
+        });
+      }
     }
 
     if (filters?.order === 'asc') {
