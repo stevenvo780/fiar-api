@@ -1,14 +1,14 @@
 {
-  "name": "total-pedidos-api",
-  "version": "0.0.1",
-  "description": "Proyecto de backend para el e-commerce Total Pedidos",
+  "name": "fiar-api",
+  "version": "1.0.0",
+  "description": "Backend de FIAR para gestion de clientes, transacciones, autenticacion y pagos (Mercado Pago)",
   "author": {
     "name": "Steven Vallejo Ortiz",
     "email": "stevenvallejo780@gmail.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/stevenvo780/total-pedidos-api.git"
+    "url": "https://github.com/stevenvo780/fiar-api.git"
   },
   "private": false,
   "license": "MIT",

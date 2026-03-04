@@ -17,8 +17,8 @@ async function bootstrap() {
   app.use(compression());
 
   const config = new DocumentBuilder()
-    .setTitle('Total Pedidos API')
-    .setDescription('Documentación de la API para el e-commerce Total Pedidos')
+    .setTitle('FIAR API')
+    .setDescription('Backend de FIAR para gestion de clientes, transacciones, autenticacion y pagos (Mercado Pago)')
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
