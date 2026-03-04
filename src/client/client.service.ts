@@ -148,6 +148,17 @@ export class ClientService {
         'No tiene permiso para acceder a este cliente',
       );
     }
+    // Cargar últimas 10 transacciones del cliente
+    const clientWithTx = await this.clientRepository
+      .createQueryBuilder('client')
+      .leftJoinAndSelect('client.transactions', 'transaction')
+      .where('client.id = :id', { id })
+      .orderBy('transaction.createdAt', 'DESC')
+      .take(10)
+      .getOne();
+    if (clientWithTx) {
+      client.transactions = clientWithTx.transactions;
+    }
     return client;
   }
 

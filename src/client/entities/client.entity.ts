@@ -3,6 +3,7 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
@@ -96,4 +97,8 @@ export class Client extends SharedProp {
     example: 'correo@correo.com',
   })
   email?: string;
+
+  @OneToMany(() => require('../../transaction/entities/transaction.entity').Transaction, (transaction: any) => transaction.client)
+  @ApiProperty({ description: 'Transacciones del cliente', required: false })
+  transactions?: any[];
 }
