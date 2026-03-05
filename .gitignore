@@ -35,5 +35,10 @@ lerna-debug.log*
 !.vscode/extensions.json
 
 .env
+.env.*
+!.env.example
 .qodo
 firebase-service-account.json
+*-service-account*.json
+.playwright-mcp/
+playwright-report/
